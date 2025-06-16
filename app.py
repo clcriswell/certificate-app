@@ -6,7 +6,7 @@ from openai import OpenAI
 from pdfminer.high_level import extract_text
 
 OPENAI_MODEL = "gpt-4o-mini"
-client = OpenAI()
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.sidebar.header("Certificate Generator v0.2")
 st.sidebar.markdown("Upload a **PDF** request *or* paste request text below.")
