@@ -1,13 +1,12 @@
 import streamlit as st
-import pdfplumber, re, tempfile, os
+import fitz  # PyMuPDF
+import re, tempfile, os
 from docx import Document
 from io import BytesIO
 from openai import OpenAI
 
 # 0 ─────────────── CONFIG ────────────────────────────────────────────────────
 OPENAI_MODEL = "gpt-4o-mini"   # fastest, counts toward Pro quota
-# (Switch to "gpt-4o" for maximum quality on extraction-language edge cases)
-
 client = OpenAI()              # key automatically read from Streamlit secrets
 
 # 1 ──────────────── SIDEBAR ──────────────────────────────────────────────────
@@ -24,16 +23,18 @@ if (not pdf_file) and (text_input.strip() == ""):
 # 3 ──────────────── EXTRACT TEXT FROM PDF IF NEEDED ─────────────────────────
 raw_text = ""
 if pdf_file:
-    with pdfplumber.open(pdf_file) as pdf:
-        raw_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(pdf_file.read())
+        tmp_path = tmp.name
+    doc = fitz.open(tmp_path)
+    raw_text = "\n".join(page.get_text() for page in doc)
+    doc.close()
+    os.remove(tmp_path)
 else:
     raw_text = text_input
 
 # 4 ──────────────── NAÏVE FIELD PARSE (REGEX) ───────────────────────────────
 def rule_based_extract(text: str) -> dict:
-    """
-    Very simple starter rules. Tune for your sample PDFs.
-    """
     name     = re.search(r"Name[:\-]\s*(.+)", text, re.I)
     title    = re.search(r"Title[:\-]\s*(.+)", text, re.I)
     occasion = re.search(r"(Occasion|Event)[:\-]\s*(.+)", text, re.I)
@@ -116,6 +117,6 @@ st.success("Certificate ready!  Click below to download.")
 st.download_button(
     label="📄 Download Word Document",
     data=doc_bytes,
-    file_name=f"Certificate_{name.replace(' ', '_')}.docx",
+    file_name=f"Certificate_{re.sub(r'[^\w\-]', '_', name)}.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
