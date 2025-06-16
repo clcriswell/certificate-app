@@ -1,14 +1,14 @@
+App.py:
+
 import streamlit as st
 import re, os, json, tempfile, io
 from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
-from openai import OpenAI
-from docx import Document
-from copy import deepcopy
+import openai
 
 # ─── CONFIG ─────────────────────────────────────────────
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
 
 # ─── HELPERS ────────────────────────────────────────────
@@ -52,42 +52,35 @@ def fallback_commendation(name, title, org):
 def categorize_tone(title):
     title_lower = title.lower()
     if any(kw in title_lower for kw in ["award", "of the year", "honoree", "achievement", "excellence", "inductee"]):
-        return "\U0001F3C6 Award"
+        return "🏆 Award"
     elif any(kw in title_lower for kw in ["president", "officer", "board", "service", "chair", "director"]):
-        return "\U0001F46E Service"
+        return "👥 Service"
     elif any(kw in title_lower for kw in ["opening", "grand", "event", "dedication", "launch"]):
-        return "\U0001F3DB Event"
+        return "🏛 Event"
     elif any(kw in title_lower for kw in ["graduate", "class of", "commencement"]):
-        return "\U0001F393 Graduation"
+        return "🎓 Graduation"
     else:
-        return "\U0001F4DD Recognition"
+        return "📝 Recognition"
 
 def extract_event_date(text):
-    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+20\\d{2}", text)
+    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}", text)
     if match:
         return match.group(0)
-    match = re.search(r"\\d{1,2}/\\d{1,2}/20\\d{2}", text)
+    match = re.search(r"\d{1,2}/\d{1,2}/20\d{2}", text)
     if match:
         return match.group(0)
     return "unknown"
 
-def load_template_from_local(path):
-    try:
-        with open(path, "rb") as f:
-            return io.BytesIO(f.read())
-    except Exception as e:
-        st.error(f"❌ Failed to load Word template: {e}")
-        return None
-
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate CSV Generator + Word Merge")
-st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV or Word file.")
+st.title("📑 Certificate CSV Generator (Multi-Entry)")
+st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
 
 pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
     st.stop()
 
+# ─── TEXT EXTRACTION ───────────────────────────────────
 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
     tmp.write(pdf_file.read())
     tmp_path = tmp.name
@@ -96,9 +89,7 @@ os.remove(tmp_path)
 
 event_date = extract_event_date(pdf_text)
 
-if event_date == "unknown":
-    st.warning("⚠️ No event date detected — certificates may show 'Dated ______'")
-
+# ─── GPT EXTRACTION ─────────────────────────────────────
 st.info(f"⏳ Detecting multiple certificate entries using GPT...\n📅 Event date detected: {event_date}")
 
 SYSTEM_PROMPT = f"""
@@ -111,7 +102,7 @@ For each certificate, return:
 - title (award or position)
 - organization
 - date_raw (use the event date if no specific date is mentioned per recipient)
-- commendation: A 1–2 sentence formal message starting with \"On behalf of the California State Legislature, ...\"
+- commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
 
 Return ONLY a valid JSON array of objects. No commentary, no markdown, no explanations.
 """
@@ -119,7 +110,7 @@ Return ONLY a valid JSON array of objects. No commentary, no markdown, no explan
 cert_rows = []
 
 try:
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -127,13 +118,7 @@ try:
         ],
         temperature=0
     )
-    content = response.choices[0].message.content
-    st.text_area("🔍 Raw GPT Output", content, height=300)
-
-    if not content:
-        raise ValueError("GPT returned no content.")
-
-    content = content.strip().strip("```json").strip("```")
+    content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
     parsed_entries = json.loads(content)
 
     for parsed in parsed_entries:
@@ -147,12 +132,34 @@ try:
         })
 
 except Exception as e:
-    st.error(f"⚠️ GPT failed: {e}. Using fallback row.")
+    st.error("⚠️ GPT failed to extract entries. Adding a fallback row.")
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
         "Organization": "UNKNOWN",
         "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
         "Formatted_Date": format_certificate_date(event_date),
-        "Tone_Category": "\U0001F4DD Recognition"
+        "Tone_Category": "📝 Recognition"
     })
+
+# ─── PREVIEW ────────────────────────────────────────────
+st.subheader("👁 Preview Extracted Certificates")
+for i, cert in enumerate(cert_rows, 1):
+    with st.expander(f"{cert['Tone_Category']} #{i}: {cert['Name']} – {cert['Title']}"):
+        st.write(f"**Organization:** {cert['Organization']}")
+        st.write(f"**Date:** {cert['Formatted_Date']}")
+        st.text_area("📜 Commendation", cert["Certificate_Text"], height=100)
+
+# ─── EXPORT TO CSV ──────────────────────────────────────
+if st.button("📥 Download CSV for Mail Merge"):
+    df = pd.DataFrame(cert_rows)
+    csv_buffer = io.BytesIO()
+    df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+    csv_data = csv_buffer.getvalue()
+
+    st.download_button(
+        label="📊 Download CSV",
+        data=csv_data,
+        file_name="Certificates_MailMerge.csv",
+        mime="text/csv"
+    )
