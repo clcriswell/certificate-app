@@ -1,5 +1,7 @@
 streamlit
-openai
 pandas
+openai>=1.0.0
 pdfminer.six
 python-docx
+requests
+
