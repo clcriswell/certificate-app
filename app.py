@@ -1,123 +1,173 @@
 import streamlit as st
-import re, tempfile, os, json
-from docx import Document
+import re, os, json, tempfile
 from io import BytesIO
+from datetime import datetime
+from docx import Document
+from pdfminer.high_level import extract_text
 import openai
 
-# 🔐 Load API key from Streamlit secrets
+# ─── CONFIG ────────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
 
-# ─────────────── UI: Sidebar
-st.sidebar.header("Certificate Generator")
-st.sidebar.markdown("Upload a **PDF** request or paste recognition text below.")
+# ─── FORMAT DATE ───────────────────────────────────────────
+def format_certificate_date(raw_date_str):
+    try:
+        dt = datetime.strptime(raw_date_str, "%B %d, %Y")
+    except ValueError:
+        for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(raw_date_str, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            return "Dated ______"
+    day = dt.day
+    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    month = dt.strftime("%B")
+    year_words = {
+        "2025": "Two Thousand and Twenty-Five",
+        "2024": "Two Thousand and Twenty-Four",
+        "2023": "Two Thousand and Twenty-Three"
+    }.get(dt.strftime("%Y"), dt.strftime("%Y"))
+    return f"Dated the {day}{suffix} of {month}\n{year_words}"
 
-# ─────────────── Input
-pdf_file = st.file_uploader("Upload request PDF", type=["pdf"])
-text_input = st.text_area("…or paste request text", height=200)
+# ─── FALLBACK MESSAGE ──────────────────────────────────────
+def fallback_commendation(name, title, org):
+    title_lower = title.lower()
+    if "award" in title_lower or "of the year" in title_lower or "honoree" in title_lower:
+        message = f"On behalf of the California State Legislature, congratulations on being recognized as {org}'s {title}. "
+    elif any(kw in title_lower for kw in ["president", "board", "officer", "service", "chair", "director"]):
+        message = f"On behalf of the California State Legislature, thank you for your service as {title} with {org}. "
+    elif "opening" in title_lower or "grand" in title_lower:
+        message = f"On behalf of the California State Legislature, congratulations on the opening of {org}. "
+    elif "graduat" in title_lower:
+        message = f"On behalf of the California State Legislature, congratulations on successfully graduating from {org}. "
+    else:
+        message = f"On behalf of the California State Legislature, we commend you for your accomplishments with {org}. "
+    message += "This recognition speaks highly of your dedication and contributions to the community."
+    return message
 
-if (not pdf_file) and (text_input.strip() == ""):
+# ─── TONE CATEGORY ─────────────────────────────────────────
+def categorize_tone(title):
+    title_lower = title.lower()
+    if any(kw in title_lower for kw in ["award", "of the year", "honoree", "achievement", "excellence", "inductee"]):
+        return "🏆 Award"
+    elif any(kw in title_lower for kw in ["president", "officer", "board", "director", "retire", "service", "chair"]):
+        return "👥 Service"
+    elif any(kw in title_lower for kw in ["opening", "grand", "event", "dedication", "launch"]):
+        return "🏛 Event"
+    elif any(kw in title_lower for kw in ["graduate", "class of", "commencement"]):
+        return "🎓 Graduation"
+    else:
+        return "📝 Recognition"
+
+# ─── UI ────────────────────────────────────────────────────
+st.set_page_config(layout="centered")
+st.title("📄 Certificate Generator (Multi-Entry PDF)")
+st.markdown("Upload a multi-entry recognition request PDF. This tool generates GPT-powered commendations and a multi-page Word document.")
+
+pdf_file = st.file_uploader("📎 Upload Multi-Request PDF", type=["pdf"])
+if not pdf_file:
     st.stop()
 
-# ─────────────── Extract text from PDF (if provided)
-raw_text = ""
-if pdf_file:
-    from pdfminer.high_level import extract_text
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(pdf_file.read())
-        tmp_path = tmp.name
-    raw_text = extract_text(tmp_path)
-    os.remove(tmp_path)
-else:
-    raw_text = text_input
+# ─── EXTRACT TEXT ──────────────────────────────────────────
+with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    tmp.write(pdf_file.read())
+    tmp_path = tmp.name
+pdf_text = extract_text(tmp_path)
+os.remove(tmp_path)
 
-# ─────────────── Basic extraction using regex
-def rule_based_extract(text: str) -> dict:
-    name     = re.search(r"Name[:\-]\s*(.+)", text, re.I)
-    title    = re.search(r"Title[:\-]\s*(.+)", text, re.I)
-    occasion = re.search(r"(Occasion|Event)[:\-]\s*(.+)", text, re.I)
-    date     = re.search(r"Date[:\-]\s*(.+)", text, re.I)
-    return {
-        "Name":     name.group(1).strip()     if name else "",
-        "Title":    title.group(1).strip()    if title else "",
-        "Occasion": occasion.group(2).strip() if occasion else "",
-        "Date":     date.group(1).strip()     if date else "",
-    }
+entries = re.split(r"\_{5,}[\s\S]+?Stan Ellis\s+Assemblyman,? \d{1,2}(st|nd|rd|th)? District", pdf_text)
+entries = [e.strip() for e in entries if e.strip()]
+st.info(f"📄 {len(entries)} entries detected.")
 
-fields = rule_based_extract(raw_text)
-
-# ─────────────── Optional GPT‑4o fix
-with st.expander("💡 Extraction looks wrong? Click here to use GPT‑4o"):
-    if st.button("Improve using GPT‑4o"):
-        response = openai.ChatCompletion.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content":
-                 "Extract the recipient's Name, Title, Occasion, and Date from the text below. "
-                 "Respond ONLY with valid JSON like this: "
-                 "{\"name\": \"\", \"title\": \"\", \"occasion\": \"\", \"date\": \"\"}. "
-                 "Do not add any explanation or notes."},
-                {"role": "user", "content": raw_text}
-            ],
-            temperature=0
-        )
-        improved = response["choices"][0]["message"]["content"]
+# ─── GPT PROCESSING ────────────────────────────────────────
+certs = []
+for idx, entry in enumerate(entries):
+    with st.spinner(f"🔍 Processing entry #{idx+1}..."):
         try:
-            cleaned = improved.strip().strip("```json").strip("```").strip()
-            parsed = json.loads(cleaned)
-            fields = {k.capitalize(): v for k, v in parsed.items()}
-            st.success("Fields updated using GPT‑4o.")
-        except json.JSONDecodeError as e:
-            st.error(f"Could not parse GPT response as JSON: {e}")
-            st.code(improved)
+            response = openai.ChatCompletion.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content":
+                     "You will be given a recognition request. Extract:\n"
+                     "• name\n• title (award or position)\n• organization\n• date_raw\n\n"
+                     "Then, generate a formal commendation message that:\n"
+                     "- Begins with 'On behalf of the California State Legislature,'\n"
+                     "- If an award: congratulates them on being recognized as OR receiving [org]'s [title]\n"
+                     "- If service: thanks them for their role\n"
+                     "- If a grand opening: congratulates on the opening of [org]\n"
+                     "Conclude with 1–2 sentences affirming their impact.\n\n"
+                     "Respond ONLY in valid JSON with keys: name, title, organization, date_raw, commendation."},
+                    {"role": "user", "content": entry}
+                ],
+                temperature=0
+            )
+            raw = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
+            parsed = json.loads(raw)
+            parsed["formatted_date"] = format_certificate_date(parsed["date_raw"])
+            parsed["tone"] = categorize_tone(parsed["title"])
+            certs.append(parsed)
+        except Exception:
+            fallback = {
+                "name": "UNKNOWN",
+                "title": "UNKNOWN",
+                "organization": "UNKNOWN",
+                "date_raw": "UNKNOWN",
+                "formatted_date": "Dated ______",
+                "commendation": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
+                "tone": "📝 Recognition"
+            }
+            certs.append(fallback)
 
-# ─────────────── Review and edit form
-with st.form("review"):
-    st.subheader("📝 Review Certificate Details")
-    name     = st.text_input("Recipient Name",  value=fields["Name"])
-    title    = st.text_input("Recipient Title", value=fields["Title"])
-    occasion = st.text_input("Occasion",        value=fields["Occasion"])
-    date     = st.text_input("Date",            value=fields["Date"])
-    add_msg  = st.checkbox("Include a commendation message")
-    submitted = st.form_submit_button("Generate Certificate")
-
-if not submitted:
+if not certs:
+    st.error("❌ No valid entries parsed.")
     st.stop()
 
-# ─────────────── Fill Word template
-def fill_template(name, title, occasion, date, add_msg):
-    doc = Document("cert_template.docx")
-    replace_map = {
-        "{{NAME}}":     name,
-        "{{TITLE}}":    title,
-        "{{OCCASION}}": occasion,
-        "{{DATE}}":     date,
-    }
+# ─── PREVIEW UI ────────────────────────────────────────────
+st.subheader("👁 Certificate Preview")
+for i, cert in enumerate(certs, 1):
+    with st.expander(f"{cert['tone']} #{i}: {cert['name']} – {cert['title']}"):
+        st.write(f"**Organization:** {cert['organization']}")
+        st.write(f"**Date:** {cert['formatted_date']}")
+        st.text_area("Commendation Message", cert["commendation"], height=100)
 
-    for p in doc.paragraphs:
-        for key, val in replace_map.items():
-            if key in p.text:
-                for run in p.runs:
-                    if key in run.text:
-                        run.text = run.text.replace(key, val)
+# ─── GENERATE .DOCX ────────────────────────────────────────
+if st.button("📄 Generate Word Document"):
+    template_path = "cert_template.docx"
+    if not os.path.exists(template_path):
+        st.error("❌ Missing 'cert_template.docx' in app folder.")
+        st.stop()
 
-    if add_msg:
-        doc.add_paragraph(
-            f"On behalf of Assemblymember Stan Ellis, we commend {name} "
-            f"for {occasion} and thank you for your service to the community."
-        )
+    merged_doc = Document()
+    for idx, cert in enumerate(certs):
+        doc = Document(template_path)
+        for p in doc.paragraphs:
+            for key, val in {
+                "«Name»": cert["name"],
+                "«Title»": cert["title"],
+                "«Certificate_Text»": cert["commendation"],
+                "«Formatted_Date»": cert["formatted_date"]
+            }.items():
+                if key in p.text:
+                    for run in p.runs:
+                        if key in run.text:
+                            run.text = run.text.replace(key, val)
+        for element in doc.element.body:
+            merged_doc.element.body.append(element)
+        if idx < len(certs) - 1:
+            merged_doc.add_page_break()
 
     buffer = BytesIO()
-    doc.save(buffer)
+    merged_doc.save(buffer)
     buffer.seek(0)
-    return buffer
 
-# ─────────────── Export as download
-doc_bytes = fill_template(name, title, occasion, date, add_msg)
-st.success("🎉 Certificate ready!")
-st.download_button(
-    label="📄 Download Word Document",
-    data=doc_bytes,
-    file_name=f"Certificate_{re.sub(r'[^\w\\-]', '_', name)}.docx",
-    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
+    st.success("🎉 Certificate document ready!")
+    st.download_button(
+        label="📥 Download Certificates (.docx)",
+        data=buffer,
+        file_name="Certificates_Merged.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
