@@ -4,8 +4,6 @@ from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
-from docx import Document
-from copy import deepcopy
 
 # ─── CONFIG ─────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -73,8 +71,8 @@ def extract_event_date(text):
 
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate CSV Generator + Word Merge")
-st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV or Word file.")
+st.title("📑 Certificate CSV Generator (Multi-Entry)")
+st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
 
 pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
@@ -150,7 +148,7 @@ for i, cert in enumerate(cert_rows, 1):
         st.write(f"**Date:** {cert['Formatted_Date']}")
         st.text_area("📜 Commendation", cert["Certificate_Text"], height=100)
 
-# ─── EXPORT: CSV ──────────────────────────────────────
+# ─── EXPORT TO CSV ──────────────────────────────────────
 if st.button("📥 Download CSV for Mail Merge"):
     df = pd.DataFrame(cert_rows)
     csv_buffer = io.BytesIO()
@@ -163,8 +161,10 @@ if st.button("📥 Download CSV for Mail Merge"):
         file_name="Certificates_MailMerge.csv",
         mime="text/csv"
     )
+    from docx import Document
+from copy import deepcopy
 
-# ─── EXPORT: WORD DOCX ────────────────────────────────
+# ─── OPTIONAL: WORD GENERATION ────────────────────────────────
 st.subheader("📝 Optional: Generate Word Certificate File")
 template_file = st.file_uploader("📄 Upload .docx Template (with {{placeholders}})", type=["docx"])
 
@@ -202,3 +202,6 @@ if template_file and st.button("🛠 Generate Word Certificates"):
 
     except Exception as e:
         st.error(f"⚠️ Failed to generate Word file: {e}")
+
+
+
