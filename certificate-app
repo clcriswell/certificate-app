@@ -1,7 +1,0 @@
-certificate‑app/
-├─ .streamlit/
-│  └─ secrets.toml     # holds OPENAI_API_KEY locally; in Cloud use their Secrets UI
-├─ app.py              # main Streamlit entry point
-├─ cert_template.docx  # << drop in your real template when ready
-├─ requirements.txt
-└─ README.md
