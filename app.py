@@ -1,13 +1,16 @@
 import streamlit as st
-import re, os, json, tempfile, io
+import re, os, json, tempfile, io, requests
 from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
+from docx import Document
+from copy import deepcopy
 
 # ─── CONFIG ─────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
+GITHUB_TEMPLATE_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/YOUR_TEMPLATE.docx"  # CHANGE THIS
 
 # ─── HELPERS ────────────────────────────────────────────
 def format_certificate_date(raw_date_str):
@@ -50,35 +53,42 @@ def fallback_commendation(name, title, org):
 def categorize_tone(title):
     title_lower = title.lower()
     if any(kw in title_lower for kw in ["award", "of the year", "honoree", "achievement", "excellence", "inductee"]):
-        return "🏆 Award"
+        return "\U0001F3C6 Award"
     elif any(kw in title_lower for kw in ["president", "officer", "board", "service", "chair", "director"]):
-        return "👥 Service"
+        return "\U0001F46E Service"
     elif any(kw in title_lower for kw in ["opening", "grand", "event", "dedication", "launch"]):
-        return "🏛 Event"
+        return "\U0001F3DB Event"
     elif any(kw in title_lower for kw in ["graduate", "class of", "commencement"]):
-        return "🎓 Graduation"
+        return "\U0001F393 Graduation"
     else:
-        return "📝 Recognition"
+        return "\U0001F4DD Recognition"
 
 def extract_event_date(text):
-    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}", text)
+    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},\\s+20\\d{2}", text)
     if match:
         return match.group(0)
-    match = re.search(r"\d{1,2}/\d{1,2}/20\d{2}", text)
+    match = re.search(r"\\d{1,2}/\\d{1,2}/20\\d{2}", text)
     if match:
         return match.group(0)
     return "unknown"
 
+def load_template_from_github(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return io.BytesIO(response.content)
+    else:
+        st.error("❌ Failed to load Word template from GitHub.")
+        return None
+
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate CSV Generator (Multi-Entry)")
-st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
+st.title("📑 Certificate CSV Generator + Word Merge")
+st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV or Word file.")
 
 pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
     st.stop()
 
-# ─── TEXT EXTRACTION ───────────────────────────────────
 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
     tmp.write(pdf_file.read())
     tmp_path = tmp.name
@@ -87,7 +97,6 @@ os.remove(tmp_path)
 
 event_date = extract_event_date(pdf_text)
 
-# ─── GPT EXTRACTION ─────────────────────────────────────
 st.info(f"⏳ Detecting multiple certificate entries using GPT...\n📅 Event date detected: {event_date}")
 
 SYSTEM_PROMPT = f"""
@@ -100,7 +109,7 @@ For each certificate, return:
 - title (award or position)
 - organization
 - date_raw (use the event date if no specific date is mentioned per recipient)
-- commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
+- commendation: A 1–2 sentence formal message starting with \"On behalf of the California State Legislature, ...\"
 
 Return ONLY a valid JSON array of objects. No commentary, no markdown, no explanations.
 """
@@ -130,14 +139,14 @@ try:
         })
 
 except Exception as e:
-    st.error("⚠️ GPT failed to extract entries. Adding a fallback row.")
+    st.error(f"⚠️ GPT failed: {e}. Using fallback row.")
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
         "Organization": "UNKNOWN",
         "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
         "Formatted_Date": format_certificate_date(event_date),
-        "Tone_Category": "📝 Recognition"
+        "Tone_Category": "\U0001F4DD Recognition"
     })
 
 # ─── PREVIEW ────────────────────────────────────────────
@@ -162,45 +171,40 @@ if st.button("📥 Download CSV for Mail Merge"):
         mime="text/csv"
     )
 
-from docx import Document
-from copy import deepcopy
+# ─── WORD GENERATION ───────────────────────────────────
+if st.button("🛠 Generate Word Certificates from GitHub Template"):
+    template_file = load_template_from_github(GITHUB_TEMPLATE_URL)
+    if template_file:
+        try:
+            template_doc = Document(template_file)
+            output_doc = Document()
+            output_doc._body.clear_content()
 
-# ─── OPTIONAL: WORD GENERATION ────────────────────────────────
-st.subheader("📝 Optional: Generate Word Certificate File")
-template_file = st.file_uploader("📄 Upload .docx Template (with {{placeholders}})", type=["docx"])
+            for _, row in pd.DataFrame(cert_rows).iterrows():
+                cert = deepcopy(template_doc)
 
-if template_file and st.button("🛠 Generate Word Certificates"):
-    try:
-        template_doc = Document(template_file)
-        output_doc = Document()
-        output_doc._body.clear_content()
+                for para in cert.paragraphs:
+                    for key in row.index:
+                        placeholder = f"{{{{{key}}}}}"
+                        if placeholder in para.text:
+                            for run in para.runs:
+                                if placeholder in run.text:
+                                    run.text = run.text.replace(placeholder, str(row[key]))
 
-        for _, row in pd.DataFrame(cert_rows).iterrows():
-            cert = deepcopy(template_doc)
+                for element in cert.element.body:
+                    output_doc.element.body.append(element)
+                output_doc.add_page_break()
 
-            for para in cert.paragraphs:
-                for key in row.index:
-                    placeholder = f"{{{{{key}}}}}"
-                    if placeholder in para.text:
-                        for run in para.runs:
-                            if placeholder in run.text:
-                                run.text = run.text.replace(placeholder, str(row[key]))
+            output_buffer = io.BytesIO()
+            output_doc.save(output_buffer)
+            output_buffer.seek(0)
 
-            for element in cert.element.body:
-                output_doc.element.body.append(element)
-            output_doc.add_page_break()
+            st.download_button(
+                label="📥 Download Word Certificates (.docx)",
+                data=output_buffer,
+                file_name="Certificates_Output.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
 
-        output_buffer = io.BytesIO()
-        output_doc.save(output_buffer)
-        output_buffer.seek(0)
-
-        st.download_button(
-            label="📥 Download Word Certificates (.docx)",
-            data=output_buffer,
-            file_name="Certificates_Output.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
-
-    except Exception as e:
-        st.error(f"⚠️ Failed to generate Word file: {e}")
-
+        except Exception as e:
+            st.error(f"⚠️ Failed to generate Word file: {e}")
