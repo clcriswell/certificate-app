@@ -3,12 +3,12 @@ import re, os, json, tempfile, io
 from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
-import openai
+from openai import OpenAI
 from docx import Document
 from copy import deepcopy
 
 # ─── CONFIG ─────────────────────────────────────────────
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 OPENAI_MODEL = "gpt-4o"
 
 # ─── HELPERS ────────────────────────────────────────────
@@ -116,7 +116,7 @@ Return ONLY a valid JSON array of objects. No commentary, no markdown, no explan
 cert_rows = []
 
 try:
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -124,7 +124,7 @@ try:
         ],
         temperature=0
     )
-    content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
+    content = response.choices[0].message.content.strip().strip("```json").strip("```")
     parsed_entries = json.loads(content)
 
     for parsed in parsed_entries:
@@ -147,63 +147,3 @@ except Exception as e:
         "Formatted_Date": format_certificate_date(event_date),
         "Tone_Category": "\U0001F4DD Recognition"
     })
-
-# ─── PREVIEW ────────────────────────────────────────────
-st.subheader("👁 Preview Extracted Certificates")
-for i, cert in enumerate(cert_rows, 1):
-    with st.expander(f"{cert['Tone_Category']} #{i}: {cert['Name']} – {cert['Title']}"):
-        st.write(f"**Organization:** {cert['Organization']}")
-        st.write(f"**Date:** {cert['Formatted_Date']}")
-        st.text_area("📜 Commendation", cert["Certificate_Text"], height=100)
-
-# ─── EXPORT TO CSV ──────────────────────────────────────
-if st.button("📥 Download CSV for Mail Merge"):
-    df = pd.DataFrame(cert_rows)
-    csv_buffer = io.BytesIO()
-    df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
-    csv_data = csv_buffer.getvalue()
-
-    st.download_button(
-        label="📊 Download CSV",
-        data=csv_data,
-        file_name="Certificates_MailMerge.csv",
-        mime="text/csv"
-    )
-
-# ─── WORD GENERATION ───────────────────────────────────
-if st.button("🛠 Generate Word Certificates from Template"):
-    template_file = load_template_from_local("template.docx")
-    if template_file:
-        try:
-            template_doc = Document(template_file)
-            output_doc = Document()
-            output_doc._body.clear_content()
-
-            for _, row in pd.DataFrame(cert_rows).iterrows():
-                cert = deepcopy(template_doc)
-
-                for para in cert.paragraphs:
-                    for key in row.index:
-                        placeholder = f"{{{{{key}}}}}"
-                        if placeholder in para.text:
-                            for run in para.runs:
-                                if placeholder in run.text:
-                                    run.text = run.text.replace(placeholder, str(row[key]))
-
-                for element in cert.element.body:
-                    output_doc.element.body.append(element)
-                output_doc.add_page_break()
-
-            output_buffer = io.BytesIO()
-            output_doc.save(output_buffer)
-            output_buffer.seek(0)
-
-            st.download_button(
-                label="📥 Download Word Certificates (.docx)",
-                data=output_buffer,
-                file_name="Certificates_Output.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
-
-        except Exception as e:
-            st.error(f"⚠️ Failed to generate Word file: {e}")
