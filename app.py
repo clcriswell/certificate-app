@@ -1,28 +1,25 @@
-import json
 import streamlit as st
-import re, tempfile, os
+import re, tempfile, os, json
 from docx import Document
 from io import BytesIO
-import openai  # OLD stable SDK
+import openai
 
-# 🔐 Set your OpenAI key from Streamlit Secrets
+# 🔐 Load API key from Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# ✅ Model (you can change to gpt-4o if desired)
 OPENAI_MODEL = "gpt-4o"
 
-# ──────────────────────────────────────────────
-st.sidebar.header("Certificate Generator v0.2")
-st.sidebar.markdown("Upload a **PDF** request *or* paste recognition text below.")
+# ─────────────── UI: Sidebar
+st.sidebar.header("Certificate Generator")
+st.sidebar.markdown("Upload a **PDF** request or paste recognition text below.")
 
-# ─────────────── INPUT ───────────────
+# ─────────────── Input
 pdf_file = st.file_uploader("Upload request PDF", type=["pdf"])
 text_input = st.text_area("…or paste request text", height=200)
 
 if (not pdf_file) and (text_input.strip() == ""):
     st.stop()
 
-# ─────────────── PARSE PDF ───────────────
+# ─────────────── Extract text from PDF (if provided)
 raw_text = ""
 if pdf_file:
     from pdfminer.high_level import extract_text
@@ -34,7 +31,7 @@ if pdf_file:
 else:
     raw_text = text_input
 
-# ─────────────── REGEX EXTRACTION ───────────────
+# ─────────────── Basic extraction using regex
 def rule_based_extract(text: str) -> dict:
     name     = re.search(r"Name[:\-]\s*(.+)", text, re.I)
     title    = re.search(r"Title[:\-]\s*(.+)", text, re.I)
@@ -49,8 +46,8 @@ def rule_based_extract(text: str) -> dict:
 
 fields = rule_based_extract(raw_text)
 
-# ─────────────── OPTIONAL GPT CLEANUP ───────────────
-with st.expander("💡 Extraction looks wrong? (Click to fix with GPT‑4o)"):
+# ─────────────── Optional GPT‑4o fix
+with st.expander("💡 Extraction looks wrong? Click here to use GPT‑4o"):
     if st.button("Improve using GPT‑4o"):
         response = openai.ChatCompletion.create(
             model=OPENAI_MODEL,
@@ -59,37 +56,35 @@ with st.expander("💡 Extraction looks wrong? (Click to fix with GPT‑4o)"):
                  "Extract the recipient's Name, Title, Occasion, and Date from the text below. "
                  "Respond ONLY with valid JSON like this: "
                  "{\"name\": \"\", \"title\": \"\", \"occasion\": \"\", \"date\": \"\"}. "
-                 "Do not add any explanation or notes."}
-,
+                 "Do not add any explanation or notes."},
                 {"role": "user", "content": raw_text}
             ],
             temperature=0
         )
-        import json
         improved = response["choices"][0]["message"]["content"]
         try:
-            parsed = json.loads(improved)
+            cleaned = improved.strip().strip("```json").strip("```").strip()
+            parsed = json.loads(cleaned)
             fields = {k.capitalize(): v for k, v in parsed.items()}
             st.success("Fields updated using GPT‑4o.")
         except json.JSONDecodeError as e:
             st.error(f"Could not parse GPT response as JSON: {e}")
             st.code(improved)
 
-
-# ─────────────── FORM UI ───────────────
+# ─────────────── Review and edit form
 with st.form("review"):
-    st.subheader("📝 Review & Edit Certificate Details")
+    st.subheader("📝 Review Certificate Details")
     name     = st.text_input("Recipient Name",  value=fields["Name"])
     title    = st.text_input("Recipient Title", value=fields["Title"])
     occasion = st.text_input("Occasion",        value=fields["Occasion"])
     date     = st.text_input("Date",            value=fields["Date"])
-    add_msg  = st.checkbox("Include a default commendation message")
+    add_msg  = st.checkbox("Include a commendation message")
     submitted = st.form_submit_button("Generate Certificate")
 
 if not submitted:
     st.stop()
 
-# ─────────────── FILL WORD TEMPLATE ───────────────
+# ─────────────── Fill Word template
 def fill_template(name, title, occasion, date, add_msg):
     doc = Document("cert_template.docx")
     replace_map = {
@@ -117,10 +112,9 @@ def fill_template(name, title, occasion, date, add_msg):
     buffer.seek(0)
     return buffer
 
-# ─────────────── EXPORT ───────────────
+# ─────────────── Export as download
 doc_bytes = fill_template(name, title, occasion, date, add_msg)
-st.success("🎉 Certificate ready! Click below to download.")
-
+st.success("🎉 Certificate ready!")
 st.download_button(
     label="📄 Download Word Document",
     data=doc_bytes,
