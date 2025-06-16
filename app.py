@@ -96,6 +96,9 @@ os.remove(tmp_path)
 
 event_date = extract_event_date(pdf_text)
 
+if event_date == "unknown":
+    st.warning("⚠️ No event date detected — certificates may show 'Dated ______'")
+
 st.info(f"⏳ Detecting multiple certificate entries using GPT...\n📅 Event date detected: {event_date}")
 
 SYSTEM_PROMPT = f"""
@@ -124,7 +127,13 @@ try:
         ],
         temperature=0
     )
-    content = response.choices[0].message.content.strip().strip("```json").strip("```")
+    content = response.choices[0].message.content
+    st.text_area("🔍 Raw GPT Output", content, height=300)
+
+    if not content:
+        raise ValueError("GPT returned no content.")
+
+    content = content.strip().strip("```json").strip("```")
     parsed_entries = json.loads(content)
 
     for parsed in parsed_entries:
