@@ -1,14 +1,14 @@
 import streamlit as st
-import fitz  # PyMuPDF
 import re, tempfile, os
 from docx import Document
 from io import BytesIO
 from openai import OpenAI
+from pdfminer.high_level import extract_text
 
 OPENAI_MODEL = "gpt-4o-mini"
 client = OpenAI()
 
-st.sidebar.header("Certificate Generator v0.1")
+st.sidebar.header("Certificate Generator v0.2")
 st.sidebar.markdown("Upload a **PDF** request *or* paste request text below.")
 
 pdf_file = st.file_uploader("Upload request PDF", type=["pdf"])
@@ -22,9 +22,7 @@ if pdf_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(pdf_file.read())
         tmp_path = tmp.name
-    doc = fitz.open(tmp_path)
-    raw_text = "\n".join(page.get_text() for page in doc)
-    doc.close()
+    raw_text = extract_text(tmp_path)
     os.remove(tmp_path)
 else:
     raw_text = text_input
