@@ -161,7 +161,8 @@ if st.button("📥 Download CSV for Mail Merge"):
         file_name="Certificates_MailMerge.csv",
         mime="text/csv"
     )
-    from docx import Document
+
+from docx import Document
 from copy import deepcopy
 
 # ─── OPTIONAL: WORD GENERATION ────────────────────────────────
@@ -202,6 +203,4 @@ if template_file and st.button("🛠 Generate Word Certificates"):
 
     except Exception as e:
         st.error(f"⚠️ Failed to generate Word file: {e}")
-
-
 
