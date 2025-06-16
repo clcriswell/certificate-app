@@ -1,5 +1,5 @@
 import streamlit as st
-import re, os, json, tempfile, io, requests
+import re, os, json, tempfile, io
 from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
@@ -10,7 +10,6 @@ from copy import deepcopy
 # ─── CONFIG ─────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
-GITHUB_TEMPLATE_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/YOUR_TEMPLATE.docx"  # CHANGE THIS
 
 # ─── HELPERS ────────────────────────────────────────────
 def format_certificate_date(raw_date_str):
@@ -72,12 +71,12 @@ def extract_event_date(text):
         return match.group(0)
     return "unknown"
 
-def load_template_from_github(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return io.BytesIO(response.content)
-    else:
-        st.error("❌ Failed to load Word template from GitHub.")
+def load_template_from_local(path):
+    try:
+        with open(path, "rb") as f:
+            return io.BytesIO(f.read())
+    except Exception as e:
+        st.error(f"❌ Failed to load Word template: {e}")
         return None
 
 # ─── UI SETUP ───────────────────────────────────────────
@@ -172,8 +171,8 @@ if st.button("📥 Download CSV for Mail Merge"):
     )
 
 # ─── WORD GENERATION ───────────────────────────────────
-if st.button("🛠 Generate Word Certificates from GitHub Template"):
-    template_file = load_template_from_github(GITHUB_TEMPLATE_URL)
+if st.button("🛠 Generate Word Certificates from Template"):
+    template_file = load_template_from_local("template.docx")
     if template_file:
         try:
             template_doc = Document(template_file)
