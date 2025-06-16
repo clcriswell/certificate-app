@@ -5,22 +5,18 @@ from docx import Document
 from io import BytesIO
 from openai import OpenAI
 
-# 0 ─────────────── CONFIG ────────────────────────────────────────────────────
-OPENAI_MODEL = "gpt-4o-mini"   # fastest, counts toward Pro quota
-client = OpenAI()              # key automatically read from Streamlit secrets
+OPENAI_MODEL = "gpt-4o-mini"
+client = OpenAI()
 
-# 1 ──────────────── SIDEBAR ──────────────────────────────────────────────────
 st.sidebar.header("Certificate Generator v0.1")
 st.sidebar.markdown("Upload a **PDF** request *or* paste request text below.")
 
-# 2 ──────────────── INPUT AREA ───────────────────────────────────────────────
 pdf_file = st.file_uploader("Upload request PDF", type=["pdf"])
 text_input = st.text_area("…or paste request text", height=200)
 
 if (not pdf_file) and (text_input.strip() == ""):
     st.stop()
 
-# 3 ──────────────── EXTRACT TEXT FROM PDF IF NEEDED ─────────────────────────
 raw_text = ""
 if pdf_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -33,7 +29,6 @@ if pdf_file:
 else:
     raw_text = text_input
 
-# 4 ──────────────── NAÏVE FIELD PARSE (REGEX) ───────────────────────────────
 def rule_based_extract(text: str) -> dict:
     name     = re.search(r"Name[:\-]\s*(.+)", text, re.I)
     title    = re.search(r"Title[:\-]\s*(.+)", text, re.I)
@@ -48,7 +43,6 @@ def rule_based_extract(text: str) -> dict:
 
 fields = rule_based_extract(raw_text)
 
-# 5 ──────────────── OPTIONAL GPT‑4o CLEAN‑UP ────────────────────────────────
 with st.expander("💡 Extraction looks wrong?  (click to use GPT‑4o)"):
     if st.button("Improve using GPT‑4o (1 message)"):
         response = client.chat.completions.create(
@@ -69,7 +63,6 @@ with st.expander("💡 Extraction looks wrong?  (click to use GPT‑4o)"):
         except Exception as e:
             st.error(f"GPT‑4o returned an unexpected format: {e}")
 
-# 6 ──────────────── REVIEW / EDIT FORM (MAIL‑MERGE STYLE) ───────────────────
 with st.form("review"):
     st.subheader("📝 Review & Edit")
     name     = st.text_input("Recipient Name",  value=fields["Name"])
@@ -82,7 +75,6 @@ with st.form("review"):
 if not submitted:
     st.stop()
 
-# 7 ──────────────── FILL WORD TEMPLATE ──────────────────────────────────────
 def fill_template(name, title, occasion, date, add_msg):
     doc = Document("cert_template.docx")
     replace_map = {
@@ -112,7 +104,6 @@ def fill_template(name, title, occasion, date, add_msg):
 
 doc_bytes = fill_template(name, title, occasion, date, add_msg)
 
-# 8 ──────────────── DOWNLOAD BUTTON ─────────────────────────────────────────
 st.success("Certificate ready!  Click below to download.")
 st.download_button(
     label="📄 Download Word Document",
