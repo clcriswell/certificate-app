@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 import re, tempfile, os
 from docx import Document
@@ -55,19 +56,25 @@ with st.expander("💡 Extraction looks wrong? (Click to fix with GPT‑4o)"):
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content":
-                 "Extract the recipient's Name, professional Title, Occasion, and Date "
-                 "from the following text. Return valid JSON with keys "
-                 "name, title, occasion, date."},
+                 "Extract the recipient's Name, Title, Occasion, and Date from the text below. "
+                 "Respond ONLY with valid JSON like this: "
+                 "{\"name\": \"\", \"title\": \"\", \"occasion\": \"\", \"date\": \"\"}. "
+                 "Do not add any explanation or notes."}
+,
                 {"role": "user", "content": raw_text}
             ],
             temperature=0
         )
+        import json
+        improved = response["choices"][0]["message"]["content"]
         try:
-            improved = response["choices"][0]["message"]["content"]
-            fields = {k.capitalize(): v for k, v in eval(improved).items()}
+            parsed = json.loads(improved)
+            fields = {k.capitalize(): v for k, v in parsed.items()}
             st.success("Fields updated using GPT‑4o.")
-        except Exception as e:
-            st.error(f"Error parsing GPT response: {e}")
+        except json.JSONDecodeError as e:
+            st.error(f"Could not parse GPT response as JSON: {e}")
+            st.code(improved)
+
 
 # ─────────────── FORM UI ───────────────
 with st.form("review"):
