@@ -62,8 +62,8 @@ def categorize_tone(title):
 
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate CSV Generator (Preview + Download)")
-st.markdown("Upload a multi-request PDF and preview auto-generated certificate fields before exporting to CSV.")
+st.title("📑 Certificate CSV Generator (Multi-Entry)")
+st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
 
 pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
@@ -76,50 +76,56 @@ with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
 pdf_text = extract_text(tmp_path)
 os.remove(tmp_path)
 
-# ─── IMPROVED ENTRY SPLITTING ──────────────────────────
-entries = re.split(r"\_{5,}[\s\S]*?Stan Ellis\s+Assemblyman", pdf_text)
-entries = [e.strip() for e in entries if e.strip()]
-st.info(f"📄 {len(entries)} entries detected.")
+# ─── GPT EXTRACTION ─────────────────────────────────────
+st.info("⏳ Detecting multiple certificate entries using GPT...")
 
-# ─── PROCESSING ────────────────────────────────────────
+SYSTEM_PROMPT = """
+You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
+
+For each one, return:
+- name
+- title (award or position)
+- organization
+- date_raw (the event date if provided, otherwise 'unknown')
+- commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
+
+Return ONLY a valid JSON array of objects. No commentary, no markdown, no explanations.
+"""
+
 cert_rows = []
-for idx, entry in enumerate(entries):
-    with st.spinner(f"🔎 Processing entry #{idx+1}..."):
-        try:
-            response = openai.ChatCompletion.create(
-                model=OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content":
-                     "You will be given a recognition request. Extract the following:\n"
-                     "name, title, organization, date_raw.\nThen generate a commendation starting with "
-                     "'On behalf of the California State Legislature,' that matches the recognition type.\n\n"
-                     "Respond ONLY with JSON: name, title, organization, date_raw, commendation."},
-                    {"role": "user", "content": entry}
-                ],
-                temperature=0
-            )
-            content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
-            parsed = json.loads(content)
-            parsed["Formatted_Date"] = format_certificate_date(parsed["date_raw"])
-            parsed["Tone_Category"] = categorize_tone(parsed["title"])
-            cert_rows.append({
-                "Name": parsed["name"],
-                "Title": parsed["title"],
-                "Organization": parsed["organization"],
-                "Certificate_Text": parsed["commendation"],
-                "Formatted_Date": parsed["Formatted_Date"],
-                "Tone_Category": parsed["Tone_Category"]
-            })
-        except Exception:
-            fallback = {
-                "Name": "UNKNOWN",
-                "Title": "UNKNOWN",
-                "Organization": "UNKNOWN",
-                "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
-                "Formatted_Date": "Dated ______",
-                "Tone_Category": "📝 Recognition"
-            }
-            cert_rows.append(fallback)
+
+try:
+    response = openai.ChatCompletion.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": pdf_text}
+        ],
+        temperature=0
+    )
+    content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
+    parsed_entries = json.loads(content)
+
+    for parsed in parsed_entries:
+        cert_rows.append({
+            "Name": parsed["name"],
+            "Title": parsed["title"],
+            "Organization": parsed["organization"],
+            "Certificate_Text": parsed["commendation"],
+            "Formatted_Date": format_certificate_date(parsed["date_raw"]),
+            "Tone_Category": categorize_tone(parsed["title"])
+        })
+
+except Exception as e:
+    st.error("⚠️ GPT failed to extract entries. Adding a fallback row.")
+    cert_rows.append({
+        "Name": "UNKNOWN",
+        "Title": "UNKNOWN",
+        "Organization": "UNKNOWN",
+        "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
+        "Formatted_Date": "Dated ______",
+        "Tone_Category": "📝 Recognition"
+    })
 
 # ─── PREVIEW ────────────────────────────────────────────
 st.subheader("👁 Preview Extracted Certificates")
