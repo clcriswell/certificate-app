@@ -2,23 +2,29 @@ import streamlit as st
 import re, tempfile, os
 from docx import Document
 from io import BytesIO
-from openai import OpenAI
-from pdfminer.high_level import extract_text
+import openai  # OLD stable SDK
 
-OPENAI_MODEL = "gpt-4o-mini"
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# 🔐 Set your OpenAI key from Streamlit Secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
+# ✅ Model (you can change to gpt-4o if desired)
+OPENAI_MODEL = "gpt-4o"
+
+# ──────────────────────────────────────────────
 st.sidebar.header("Certificate Generator v0.2")
-st.sidebar.markdown("Upload a **PDF** request *or* paste request text below.")
+st.sidebar.markdown("Upload a **PDF** request *or* paste recognition text below.")
 
+# ─────────────── INPUT ───────────────
 pdf_file = st.file_uploader("Upload request PDF", type=["pdf"])
 text_input = st.text_area("…or paste request text", height=200)
 
 if (not pdf_file) and (text_input.strip() == ""):
     st.stop()
 
+# ─────────────── PARSE PDF ───────────────
 raw_text = ""
 if pdf_file:
+    from pdfminer.high_level import extract_text
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(pdf_file.read())
         tmp_path = tmp.name
@@ -27,6 +33,7 @@ if pdf_file:
 else:
     raw_text = text_input
 
+# ─────────────── REGEX EXTRACTION ───────────────
 def rule_based_extract(text: str) -> dict:
     name     = re.search(r"Name[:\-]\s*(.+)", text, re.I)
     title    = re.search(r"Title[:\-]\s*(.+)", text, re.I)
@@ -41,9 +48,10 @@ def rule_based_extract(text: str) -> dict:
 
 fields = rule_based_extract(raw_text)
 
-with st.expander("💡 Extraction looks wrong?  (click to use GPT‑4o)"):
-    if st.button("Improve using GPT‑4o (1 message)"):
-        response = client.chat.completions.create(
+# ─────────────── OPTIONAL GPT CLEANUP ───────────────
+with st.expander("💡 Extraction looks wrong? (Click to fix with GPT‑4o)"):
+    if st.button("Improve using GPT‑4o"):
+        response = openai.ChatCompletion.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content":
@@ -55,24 +63,26 @@ with st.expander("💡 Extraction looks wrong?  (click to use GPT‑4o)"):
             temperature=0
         )
         try:
-            improved = response.choices[0].message.content
+            improved = response["choices"][0]["message"]["content"]
             fields = {k.capitalize(): v for k, v in eval(improved).items()}
-            st.success("Fields updated from GPT‑4o.")
+            st.success("Fields updated using GPT‑4o.")
         except Exception as e:
-            st.error(f"GPT‑4o returned an unexpected format: {e}")
+            st.error(f"Error parsing GPT response: {e}")
 
+# ─────────────── FORM UI ───────────────
 with st.form("review"):
-    st.subheader("📝 Review & Edit")
+    st.subheader("📝 Review & Edit Certificate Details")
     name     = st.text_input("Recipient Name",  value=fields["Name"])
     title    = st.text_input("Recipient Title", value=fields["Title"])
     occasion = st.text_input("Occasion",        value=fields["Occasion"])
     date     = st.text_input("Date",            value=fields["Date"])
-    add_msg  = st.checkbox("Include draft certificate message language")
+    add_msg  = st.checkbox("Include a default commendation message")
     submitted = st.form_submit_button("Generate Certificate")
 
 if not submitted:
     st.stop()
 
+# ─────────────── FILL WORD TEMPLATE ───────────────
 def fill_template(name, title, occasion, date, add_msg):
     doc = Document("cert_template.docx")
     replace_map = {
@@ -81,13 +91,13 @@ def fill_template(name, title, occasion, date, add_msg):
         "{{OCCASION}}": occasion,
         "{{DATE}}":     date,
     }
+
     for p in doc.paragraphs:
         for key, val in replace_map.items():
             if key in p.text:
-                inline = p.runs
-                for i in range(len(inline)):
-                    if key in inline[i].text:
-                        inline[i].text = inline[i].text.replace(key, val)
+                for run in p.runs:
+                    if key in run.text:
+                        run.text = run.text.replace(key, val)
 
     if add_msg:
         doc.add_paragraph(
@@ -100,12 +110,13 @@ def fill_template(name, title, occasion, date, add_msg):
     buffer.seek(0)
     return buffer
 
+# ─────────────── EXPORT ───────────────
 doc_bytes = fill_template(name, title, occasion, date, add_msg)
+st.success("🎉 Certificate ready! Click below to download.")
 
-st.success("Certificate ready!  Click below to download.")
 st.download_button(
     label="📄 Download Word Document",
     data=doc_bytes,
-    file_name=f"Certificate_{re.sub(r'[^\w\-]', '_', name)}.docx",
+    file_name=f"Certificate_{re.sub(r'[^\w\\-]', '_', name)}.docx",
     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
