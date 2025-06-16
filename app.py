@@ -1,16 +1,14 @@
 import streamlit as st
 import re, os, json, tempfile
-from io import BytesIO
 from datetime import datetime
-from docx import Document
+import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
 
-# ─── CONFIG ────────────────────────────────────────────────
+# ─── CONFIG ─────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
 
-# ─── FORMAT DATE ───────────────────────────────────────────
 def format_certificate_date(raw_date_str):
     try:
         dt = datetime.strptime(raw_date_str, "%B %d, %Y")
@@ -33,7 +31,6 @@ def format_certificate_date(raw_date_str):
     }.get(dt.strftime("%Y"), dt.strftime("%Y"))
     return f"Dated the {day}{suffix} of {month}\n{year_words}"
 
-# ─── FALLBACK MESSAGE ──────────────────────────────────────
 def fallback_commendation(name, title, org):
     title_lower = title.lower()
     if "award" in title_lower or "of the year" in title_lower or "honoree" in title_lower:
@@ -49,7 +46,6 @@ def fallback_commendation(name, title, org):
     message += "This recognition speaks highly of your dedication and contributions to the community."
     return message
 
-# ─── TONE CATEGORY ─────────────────────────────────────────
 def categorize_tone(title):
     title_lower = title.lower()
     if any(kw in title_lower for kw in ["award", "of the year", "honoree", "achievement", "excellence", "inductee"]):
@@ -63,16 +59,16 @@ def categorize_tone(title):
     else:
         return "📝 Recognition"
 
-# ─── UI ────────────────────────────────────────────────────
+# ─── STREAMLIT UI ───────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📄 Certificate Generator (Multi-Entry PDF)")
-st.markdown("Upload a multi-entry recognition request PDF. This tool generates GPT-powered commendations and a multi-page Word document.")
+st.title("📊 Certificate Data Extractor (Excel Mail Merge Mode)")
+st.markdown("Upload a PDF with multiple recognition entries. This will extract and structure the data for mail merge in Excel.")
 
 pdf_file = st.file_uploader("📎 Upload Multi-Request PDF", type=["pdf"])
 if not pdf_file:
     st.stop()
 
-# ─── EXTRACT TEXT ──────────────────────────────────────────
+# ─── TEXT EXTRACTION ────────────────────────────────────
 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
     tmp.write(pdf_file.read())
     tmp_path = tmp.name
@@ -83,10 +79,10 @@ entries = re.split(r"\_{5,}[\s\S]+?Stan Ellis\s+Assemblyman,? \d{1,2}(st|nd|rd|t
 entries = [e.strip() for e in entries if e.strip()]
 st.info(f"📄 {len(entries)} entries detected.")
 
-# ─── GPT PROCESSING ────────────────────────────────────────
-certs = []
+# ─── PROCESS EACH ENTRY ─────────────────────────────────
+data = []
 for idx, entry in enumerate(entries):
-    with st.spinner(f"🔍 Processing entry #{idx+1}..."):
+    with st.spinner(f"🧠 Processing entry #{idx+1}..."):
         try:
             response = openai.ChatCompletion.create(
                 model=OPENAI_MODEL,
@@ -94,80 +90,47 @@ for idx, entry in enumerate(entries):
                     {"role": "system", "content":
                      "You will be given a recognition request. Extract:\n"
                      "• name\n• title (award or position)\n• organization\n• date_raw\n\n"
-                     "Then, generate a formal commendation message that:\n"
-                     "- Begins with 'On behalf of the California State Legislature,'\n"
-                     "- If an award: congratulates them on being recognized as OR receiving [org]'s [title]\n"
-                     "- If service: thanks them for their role\n"
-                     "- If a grand opening: congratulates on the opening of [org]\n"
-                     "Conclude with 1–2 sentences affirming their impact.\n\n"
-                     "Respond ONLY in valid JSON with keys: name, title, organization, date_raw, commendation."},
+                     "Then generate a commendation starting with 'On behalf of the California State Legislature,' "
+                     "that suits the tone (award, service, opening, graduation).\n\n"
+                     "Return only valid JSON with keys: name, title, organization, date_raw, commendation."},
                     {"role": "user", "content": entry}
                 ],
                 temperature=0
             )
             raw = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
             parsed = json.loads(raw)
-            parsed["formatted_date"] = format_certificate_date(parsed["date_raw"])
-            parsed["tone"] = categorize_tone(parsed["title"])
-            certs.append(parsed)
+            parsed["Formatted_Date"] = format_certificate_date(parsed["date_raw"])
+            parsed["Tone_Category"] = categorize_tone(parsed["title"])
+            data.append({
+                "Name": parsed["name"],
+                "Title": parsed["title"],
+                "Organization": parsed["organization"],
+                "Certificate_Text": parsed["commendation"],
+                "Formatted_Date": parsed["Formatted_Date"],
+                "Tone_Category": parsed["Tone_Category"]
+            })
         except Exception:
             fallback = {
-                "name": "UNKNOWN",
-                "title": "UNKNOWN",
-                "organization": "UNKNOWN",
-                "date_raw": "UNKNOWN",
-                "formatted_date": "Dated ______",
-                "commendation": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
-                "tone": "📝 Recognition"
+                "Name": "UNKNOWN",
+                "Title": "UNKNOWN",
+                "Organization": "UNKNOWN",
+                "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
+                "Formatted_Date": "Dated ______",
+                "Tone_Category": "📝 Recognition"
             }
-            certs.append(fallback)
+            data.append(fallback)
 
-if not certs:
-    st.error("❌ No valid entries parsed.")
-    st.stop()
-
-# ─── PREVIEW UI ────────────────────────────────────────────
-st.subheader("👁 Certificate Preview")
-for i, cert in enumerate(certs, 1):
-    with st.expander(f"{cert['tone']} #{i}: {cert['name']} – {cert['title']}"):
-        st.write(f"**Organization:** {cert['organization']}")
-        st.write(f"**Date:** {cert['formatted_date']}")
-        st.text_area("Commendation Message", cert["commendation"], height=100)
-
-# ─── GENERATE .DOCX ────────────────────────────────────────
-if st.button("📄 Generate Word Document"):
-    template_path = "cert_template.docx"
-    if not os.path.exists(template_path):
-        st.error("❌ Missing 'cert_template.docx' in app folder.")
-        st.stop()
-
-    merged_doc = Document()
-    for idx, cert in enumerate(certs):
-        doc = Document(template_path)
-        for p in doc.paragraphs:
-            for key, val in {
-                "«Name»": cert["name"],
-                "«Title»": cert["title"],
-                "«Certificate_Text»": cert["commendation"],
-                "«Formatted_Date»": cert["formatted_date"]
-            }.items():
-                if key in p.text:
-                    for run in p.runs:
-                        if key in run.text:
-                            run.text = run.text.replace(key, val)
-        for element in doc.element.body:
-            merged_doc.element.body.append(element)
-        if idx < len(certs) - 1:
-            merged_doc.add_page_break()
-
-    buffer = BytesIO()
-    merged_doc.save(buffer)
-    buffer.seek(0)
-
-    st.success("🎉 Certificate document ready!")
+# ─── EXPORT TO EXCEL ────────────────────────────────────
+if st.button("📥 Download Mail Merge Excel"):
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name="Certificates")
+    output.seek(0)
+    st.success("✅ Your Excel file is ready!")
     st.download_button(
-        label="📥 Download Certificates (.docx)",
-        data=buffer,
-        file_name="Certificates_Merged.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        label="📊 Download Excel File",
+        data=output,
+        file_name="Certificates_MailMerge.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
