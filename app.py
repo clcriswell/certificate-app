@@ -413,17 +413,31 @@ for i, cert in enumerate(cert_rows, 1):
         st.markdown("---")
         st.markdown("#### 📄 Certificate Preview")
         lines = []
-        lines.append(f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold;'>{name}</div>")
+        lines.append(
+            f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold; margin-bottom:4px;'>{name}</div>"
+        )
         display_title = format_display_title(title, org)
         if display_title.strip():
-            lines.append(f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold;'>{display_title}</div>")
-        lines.append(f"<div style='text-align:center; font-size:{int(text_size)}px; margin-top:15px;'>{text.replace(chr(10), '<br>')}</div>")
-        for line in cert["Formatted_Date"].split("\n"):
-            lines.append(f"<div style='text-align:center; font-size:{int(date_size)}px; margin-top:20px;'>{line}</div>")
-        lines.append("<br>" * 5)
-        lines.append(f"<div style='text-align:right; font-size:12px;'>_____________________________________</div>")
-        lines.append(f"<div style='text-align:right; font-size:14px;'>Stan Ellis</div>")
-        lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
+            lines.append(
+                f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold; margin-bottom:4px;'>{display_title}</div>"
+            )
+        lines.append(
+            f"<div style='text-align:center; font-size:{int(text_size)}px; margin-top:8px;'>{text.replace(chr(10), '<br>')}</div>"
+        )
+        for idx, line in enumerate(cert["Formatted_Date"].split("\n")):
+            mt = 20 if idx == 0 else 0
+            lines.append(
+                f"<div style='text-align:center; font-size:{int(date_size)}px; margin-top:{mt}px;'>{line}</div>"
+            )
+        lines.append(
+            f"<div style='text-align:right; font-size:12px; margin-top:0;'>_____________________________________</div>"
+        )
+        lines.append(
+            f"<div style='text-align:right; font-size:14px; margin-top:0;'>Stan Ellis</div>"
+        )
+        lines.append(
+            f"<div style='text-align:right; font-size:14px; margin-top:0;'>Assemblyman, 32nd District</div>"
+        )
         st.markdown("<br>".join(lines), unsafe_allow_html=True)
 
 
