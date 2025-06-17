@@ -311,11 +311,16 @@ for i, cert in enumerate(cert_rows, 1):
                     org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}_{alt_name}")
                     text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}_{alt_name}")
                     approved = st.checkbox("✅ Approve", value=True, key=f"approve_{i}_{alt_name}")
-                    final_cert_rows.append({
-                        "approved": approved, "Name": name, "Title": title,
-                        "Organization": org, "Certificate_Text": text,
-                        "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
-                    })
+                    cert_copy = {
+                        "Name": name,
+                        "Title": title,
+                        "Organization": org,
+                        "Certificate_Text": text,
+                        "Formatted_Date": cert["Formatted_Date"],
+                        "Tone_Category": cert["Tone_Category"],
+                    }
+                    cert_copy["approved"] = approved
+                    final_cert_rows.append(cert_copy)
                 continue
 
         name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
@@ -416,7 +421,7 @@ def generate_word_certificates(entries):
     return doc
 
 if st.button("📄 Generate Word Certificates"):
-    approved_entries = [c for c in final_cert_rows if c["approved"]]
+    approved_entries = [c for c in final_cert_rows if c.get("approved")]
     if not approved_entries:
         st.error("No certificates were approved.")
     else:
