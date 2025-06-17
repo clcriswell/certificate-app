@@ -344,21 +344,10 @@ for i, cert in enumerate(cert_rows, 1):
         title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
         org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
-        col1, col2 = st.columns(2)
-        with col1:
-            name_size = st.number_input("Name Size", 20, 80, int(cert.get("Name_Size", determine_name_font_size(name))), key=f"name_size_{i}")
-            title_size = st.number_input("Title Size", 12, 60, int(cert.get("Title_Size", determine_title_font_size(title))), key=f"title_size_{i}")
-        with col2:
-            text_size = st.number_input("Text Size", 10, 40, int(cert.get("Text_Size", 14)), key=f"text_size_{i}")
-            date_size = st.number_input("Date Size", 8, 30, int(cert.get("Date_Size", 12)), key=f"date_size_{i}")
-        if st.button("📏 Apply Font Sizes to All", key=f"apply_sizes_{i}"):
-            for idx in range(len(st.session_state.cert_rows)):
-                st.session_state.cert_rows[idx]["Name_Size"] = name_size
-                st.session_state.cert_rows[idx]["Title_Size"] = title_size
-                st.session_state.cert_rows[idx]["Text_Size"] = text_size
-                st.session_state.cert_rows[idx]["Date_Size"] = date_size
-            cert_rows = st.session_state.cert_rows
-            st.success("Font sizes applied to all certificates.")
+        name_size = determine_name_font_size(name)
+        title_size = determine_title_font_size(format_display_title(title, org))
+        text_size = 14
+        date_size = 12
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
