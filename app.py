@@ -103,37 +103,8 @@ def load_example_certificates(n=3):
 
     return random.sample(entries, min(len(entries), n))
 
-def load_learned_preferences(path="learned_preferences.json"):
-    if not Path(path).exists():
-        return ""
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        return ""
-
-    prefs = ""
-
-    phrases = data.get("common_phrases", [])
-    tone = data.get("tone_preferences", [])
-
-    if phrases:
-        prefs += "Preferred phrases for commendations include:\n"
-        for p in phrases:
-            prefs += f"- {p}\n"
-
-    if tone:
-        prefs += "\nTone suggestions:\n"
-        for t in tone:
-            prefs += f"- {t}\n"
-
-    return prefs.strip()
-
-
-# ─── UI Setup ──────────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate Review Assistant")
+st.title("📁 Certificate Review Assistant")
 
 pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
 text_input = st.text_area("Or paste certificate request text here", height=300)
@@ -154,52 +125,31 @@ else:
     source_type = "pasted"
 
 event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
-
-# Load few-shot examples
 examples = load_example_certificates(3)
 few_shot_examples = ""
 for idx, ex in enumerate(examples, 1):
-    few_shot_examples += f"""
-Example {idx}:
-Name: {ex['final_name']}
-Title: {ex['final_title']}
-Organization: {ex['final_organization']}
-Commendation:
-{ex['final_commendation']}
-"""
-
-few_shot_block = ""
-if few_shot_examples.strip():
-    few_shot_block = f"\nHere are a few example certificates to follow for style and tone:\n{few_shot_examples}"
-
-learned_guidance = load_learned_preferences()
+    few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
 
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
-- If more than one name or organization appears in a single entry, set "possible_split": true
-- If you're uncertain about name, title, or org, return multiple options inside "alternatives"
+- If more than one name or organization appears in a single entry, set \"possible_split\": true
+- If you're uncertain about name, title, or org, return multiple options inside \"alternatives\"
 
 Each certificate must include:
 - name
-- title (NOT "Certificate of Recognition")
+- title
 - organization (if applicable)
 - date_raw (or fallback to event date)
 - commendation: 2–3 sentence message starting with “On behalf of the California State Legislature...” that honors their work and ends with well wishes
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
-{f"Here are preferences based on prior approvals:\n{learned_guidance}" if learned_guidance else ""}
-
-{few_shot_block}
-
 The event date is: {event_date}
 
 Return ONLY valid JSON.
 """
-
-
 
 cert_rows = []
 
@@ -245,18 +195,18 @@ except Exception as e:
     st.text(str(e))
     st.stop()
 
-# ─── REVIEW + PREVIEW UI ─────────────────────────────────────
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
     "Optional: Enter general comments, tone guidance, or feedback that applies to all certificates.",
     placeholder="e.g., 'Make all commendations sound more formal.'",
     key="global_comment"
 )
+
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
-    with st.expander(f"📝 {cert['Name']} – {cert['Title']}"):
+    with st.expander(f"📜 {cert['Name']} – {cert['Title']}"):
 
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
@@ -275,23 +225,24 @@ for i, cert in enumerate(cert_rows, 1):
                     })
                 continue
 
-        alt = cert.get("alternatives", {})
-        name = st.selectbox("Name", options=alt.get("name", [cert["Name"]]), key=f"name_{i}")
-        title = st.selectbox("Title", options=alt.get("title", [cert["Title"]]), key=f"title_{i}")
-        org = st.selectbox("Organization", options=alt.get("organization", [cert["Organization"]]), key=f"org_{i}")
+        name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
+        title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
+        org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
-        final_cert_rows.append({
-            "approved": approved, "Name": name, "Title": title,
-            "Organization": org, "Certificate_Text": text,
-            "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"],
-            "reviewer_comment": indiv_comment
-})
+        if st.button("📄 Update This Certificate", key=f"update_{i}"):
+            cert["Name"] = name
+            cert["Title"] = title
+            cert["Organization"] = org
+            cert["Certificate_Text"] = text
+            cert["approved"] = approved
+            cert["reviewer_comment"] = indiv_comment
+            st.success("Certificate updated.")
 
+        final_cert_rows.append(cert)
 
-        # LIVE PREVIEW
         st.markdown("---")
         st.markdown("#### 📄 Certificate Preview")
         lines = []
@@ -309,19 +260,15 @@ for i, cert in enumerate(cert_rows, 1):
         lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
         st.markdown("<br>".join(lines), unsafe_allow_html=True)
 
-# ─── WORD GENERATION ─────────────────────────────────────
+
 def generate_word_certificates(entries):
     doc = Document()
     for i, entry in enumerate(entries):
         if i > 0:
             doc.add_page_break()
 
-        # Adjust top spacing based on commendation length
-        text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
-        spacer_lines = max(6, 14 - text_line_count)
-
         p_spacer = doc.add_paragraph()
-        p_spacer.paragraph_format.space_before = Pt(spacer_lines * 12)
+        p_spacer.paragraph_format.space_before = Pt(250)
         p_spacer.add_run(" ").font.size = Pt(12)
 
         p_name = doc.add_paragraph(entry["Name"])
@@ -371,7 +318,6 @@ def generate_word_certificates(entries):
             sig.runs[0].font.size = Pt(size)
     return doc
 
-# ─── FINAL BUTTON ───────────────────────────────────────
 if st.button("📄 Generate Word Certificates"):
     approved_entries = [c for c in final_cert_rows if c["approved"]]
     if not approved_entries:
@@ -389,41 +335,3 @@ if st.button("📄 Generate Word Certificates"):
                 file_name="Certificates.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
-# ─── KNOWLEDGE TAB ──────────────────────────────────────
-with st.sidebar.expander("📖 Knowledge (Admin Only)"):
-    password = st.text_input("Enter admin password", type="password")
-    if password == "simplepass":  # ✅ You can change this to whatever you want
-
-        prefs_path = "learned_preferences.json"
-        if Path(prefs_path).exists():
-            with open(prefs_path, "r", encoding="utf-8") as f:
-                current_prefs = json.load(f)
-        else:
-            current_prefs = {"common_phrases": [], "tone_preferences": []}
-
-        st.markdown("### ✍️ Edit Common Phrases")
-        new_phrases = st.text_area(
-            "One per line",
-            value="\n".join(current_prefs.get("common_phrases", [])),
-            height=150,
-        )
-
-        st.markdown("### ✍️ Edit Tone Notes")
-        new_tone = st.text_area(
-            "One per line",
-            value="\n".join(current_prefs.get("tone_preferences", [])),
-            height=100,
-        )
-
-        if st.button("💾 Save Preferences"):
-            updated = {
-                "common_phrases": [line.strip() for line in new_phrases.splitlines() if line.strip()],
-                "tone_preferences": [line.strip() for line in new_tone.splitlines() if line.strip()],
-                "notes": "This file is managed by the Certificate Generator's learning engine."
-            }
-            with open(prefs_path, "w", encoding="utf-8") as f:
-                json.dump(updated, f, indent=2)
-            st.success("Preferences saved.")
-    elif password:
-        st.error("Incorrect password.")
