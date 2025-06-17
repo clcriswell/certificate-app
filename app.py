@@ -241,9 +241,8 @@ if "{{Signature_Block}}" in text:
     line3.runs[0].font.name = "Times New Roman"
     line3.runs[0].font.size = Pt(12)
 
-    continue  # Skip the rest of this run processing
+    break  # Exit the current run loop for this paragraph
 
-                    continue
 
                 for key, value in row.items():
                     placeholder = f"{{{{{key}}}}}"
