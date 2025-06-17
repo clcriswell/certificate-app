@@ -121,30 +121,31 @@ else:
 event_date = extract_event_date(pdf_text)
 
 SYSTEM_PROMPT = f"""
-You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
+You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one, generate a thoughtfully written commendation that reflects the specific context and purpose of the event.
 
-The event date for this request is: {event_date}
+The event date is: {event_date}
 
-For each certificate, return:
+Each certificate output must include:
 - name
-- title (award or position)
-- organization
-- date_raw (use the event date if no specific date is mentioned per recipient)
-- commendation: A 2–3 sentence formal message that begins with "On behalf of the California State Legislature, ..." and includes a congratulatory statement, a community value reflection, and a closing best wishes sentence.
+- title (award or position — do NOT use "Certificate of Recognition")
+- organization (if mentioned)
+- date_raw (use the event date if no specific date is listed)
+- commendation: a 2–3 sentence message beginning with "On behalf of the California State Legislature..." that reflects what the recipient is being honored for, ties to the community or cause, and ends with well wishes
 
-Respond only with JSON in this format:
+Here is the format you must return:
 [
   {{
     "name": "Jane Smith",
     "title": "Volunteer of the Year",
     "organization": "Good Neighbors Foundation",
     "date_raw": "June 12, 2025",
-    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated. I wish you all the best in your future endeavors."
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your dedication to the Good Neighbors Foundation has had a lasting impact. I wish you all the best in your future endeavors."
   }}
 ]
 
-DO NOT include markdown, explanations, or extra text.
+Return ONLY the JSON. Do not include markdown, headers, explanations, or anything else.
 """
+
 
 cert_rows = []
 
