@@ -78,7 +78,7 @@ def determine_name_font_size(name):
     if length <= 18: return 48
     if length <= 24: return 40
     if length <= 30: return 34
-    return 28  # fallback for long names
+    return 28
 
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
@@ -136,6 +136,9 @@ try:
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
+        if parsed["title"].strip().lower() == "certificate of recognition":
+            parsed["title"] = ""
+
         cert_rows.append({
             "Name": parsed["name"],
             "Title": parsed["title"],
@@ -165,11 +168,8 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
-        # Vertical spacer (~half page)
-        p_spacer = doc.add_paragraph("\n" * 14)
-        p_spacer.runs[0].font.size = Pt(12)
+        doc.add_paragraph("\n" * 14).runs[0].font.size = Pt(12)
 
-        # NAME (big, bold, centered)
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p_name.runs[0]
@@ -178,7 +178,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
-        # TITLE (28 pt bold, centered)
         if entry["Title"].strip():
             p_title = doc.add_paragraph(entry["Title"])
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -187,7 +186,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.name = "Times New Roman"
             run.font.size = Pt(28)
 
-        # COMMENDATION
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
@@ -195,40 +193,36 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.name = "Times New Roman"
         run.font.size = Pt(14)
 
-        # DATE (2 lines, no space between lines, 12 pt)
-        date_lines = entry["Formatted_Date"].split("\n")
-        for idx, line in enumerate(date_lines):
+        for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            if idx > 0:
-                p_date.paragraph_format.space_before = Pt(0)
-            else:
-                p_date.paragraph_format.space_before = Pt(20)
+            p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 20)
             p_date.paragraph_format.space_after = Pt(0)
             run = p_date.runs[0]
             run.font.name = "Times New Roman"
             run.font.size = Pt(12)
 
-        # SIGNATURE (3 lines, no spacing between them)
-        lines = [
-            "_____________________________________",
-            "Stan Ellis",
-            "Assemblyman, 32nd District"
-        ]
-        sizes = [12, 14, 14]
+        # 5 line spacing after date
+        for _ in range(5):
+            p_pad = doc.add_paragraph("")
+            p_pad.paragraph_format.space_before = Pt(0)
+            p_pad.paragraph_format.space_after = Pt(0)
+            p_pad.runs[0].font.size = Pt(12)
 
-        for i, text in enumerate(lines):
-            p_sig = doc.add_paragraph(text)
+        for line, size in [
+            ("_____________________________________", 12),
+            ("Stan Ellis", 14),
+            ("Assemblyman, 32nd District", 14)
+        ]:
+            p_sig = doc.add_paragraph(line)
             p_sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
             p_sig.paragraph_format.space_before = Pt(0)
             p_sig.paragraph_format.space_after = Pt(0)
             run = p_sig.runs[0]
             run.font.name = "Times New Roman"
-            run.font.size = Pt(sizes[i])
+            run.font.size = Pt(size)
 
     return doc
-
-
 
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
 if st.button("📄 Generate Word Certificates"):
