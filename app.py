@@ -321,6 +321,29 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
         cert["Formatted_Date"] = format_certificate_date(updated["date_raw"])
     return cert
 
+def apply_global_comment(cert_rows, global_comment):
+    """Apply simple global instructions to all certificates."""
+    if not global_comment.strip():
+        return cert_rows
+
+    comment = global_comment.lower()
+
+    # Set a single organization for all certificates
+    org_match = re.search(r"organization(?: name)?(?: for all certificates)?\s*(?:is|=|:)\s*['\"]?([^'\"\n]+)['\"]?", comment)
+    if org_match:
+        org_value = org_match.group(1).strip()
+        for cert in cert_rows:
+            cert["Organization"] = org_value
+
+    # Replace the title with the organization text
+    if ("use organization instead of title" in comment or
+            "replace title with organization" in comment):
+        for cert in cert_rows:
+            cert["Title"] = cert.get("Organization", "")
+            cert["Title_Size"] = determine_title_font_size(format_display_title(cert["Title"], cert["Organization"]))
+
+    return cert_rows
+
 def split_certificate(index):
     """Split a certificate with multiple names into separate entries."""
     cert = st.session_state.cert_rows[index]
@@ -404,6 +427,7 @@ global_comment = st.text_area(
 )
 
 if st.button("🔄 Regenerate All Certificates", key="regen_all"):
+    cert_rows = apply_global_comment(cert_rows, global_comment)
     new_rows = []
     for cert in cert_rows:
         try:
@@ -460,6 +484,7 @@ for i, cert in enumerate(cert_rows, 1):
         if st.button("🔄 Regenerate Certificate", key=f"regen_{i}"):
             if indiv_comment.strip():
                 try:
+                    apply_global_comment([cert], global_comment)
                     regenerate_certificate(cert, global_comment, indiv_comment)
                     cert["Name_Size"] = determine_name_font_size(cert["Name"])
                     cert["Title_Size"] = determine_title_font_size(format_display_title(cert["Title"], cert["Organization"]))
