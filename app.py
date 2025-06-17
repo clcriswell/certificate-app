@@ -125,7 +125,7 @@ try:
         cert_rows.append({
     "Name": parsed["name"],
     "Title": parsed["title"],
-    "Organization": parsed["organization"],
+    "Organization": parsed.get("organization", ""),
     "Certificate_Text": commendation,
     "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
     "Tone_Category": "📝",
