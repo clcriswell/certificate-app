@@ -231,14 +231,12 @@ for i, cert in enumerate(cert_rows):
             new_text = refine_commendation(name, title, org, comment)
             if new_text:
                 cert["Certificate_Text"] = new_text
-                st.session_state[f"text_{i}"] = new_text
+                # Workaround to avoid assigning to widget-managed key directly
+if f"text_{i}" in st.session_state:
+    st.session_state[f"text_{i}_refined"] = new_text
                 st.success("Commendation refined.")
 
-        cert.update({
-            "Name": name,
-            "Title": title,
-            "Organization": org,
-            "Certificate_Text": st.session_state.get(f"text_{i}", text),
+        cert.update({"Certificate_Text": st.session_state.get(f"text_{i}_refined", text),
             "Formatted_Date": cert["Formatted_Date"],
             "approved": approved,
             "reviewer_comment": comment
