@@ -102,7 +102,18 @@ For each certificate, return:
 - date_raw (use the event date if no specific date is mentioned per recipient)
 - commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
 
-Return ONLY a valid JSON array of objects. No commentary, no markdown, no explanations.
+Format your output like this:
+[
+  {{
+    "name": "Jane Smith",
+    "title": "Volunteer of the Year",
+    "organization": "Good Neighbors Foundation",
+    "date_raw": "June 12, 2025",
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."
+  }}
+]
+
+DO NOT include any explanations, markdown, or commentary. Only return a raw JSON array.
 """
 
 cert_rows = []
@@ -116,8 +127,15 @@ try:
         ],
         temperature=0
     )
-    content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
-    parsed_entries = json.loads(content)
+    content = response["choices"][0]["message"]["content"]
+
+    # 🧾 Display raw GPT output for debugging
+    st.subheader("🧾 Raw GPT Output (for debugging)")
+    st.code(content[:2000], language="json")
+
+    # Clean and parse the response
+    clean = content.strip().removeprefix("```json").removesuffix("```").strip()
+    parsed_entries = json.loads(clean)
 
     for parsed in parsed_entries:
         cert_rows.append({
@@ -130,7 +148,8 @@ try:
         })
 
 except Exception as e:
-    st.error("⚠️ GPT failed to extract entries. Adding a fallback row.")
+    st.error("⚠️ GPT returned invalid JSON. Here's the unparsed output:")
+    st.code(content)
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
