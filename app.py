@@ -435,8 +435,12 @@ for i, cert in enumerate(cert_rows, 1):
         org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
         name_size = determine_name_font_size(name)
-        title_size = determine_title_font_size(format_display_title(title, org))
-        text_size = 14
+        display_title = format_display_title(title, org)
+        title_size = determine_title_font_size(display_title)
+        if display_title.strip():
+            text_size = max(8, round(title_size * 0.75))
+        else:
+            text_size = max(8, round(name_size / 2))
         date_size = 12
         exclude = st.checkbox("🚫 Exclude this certificate", value=False, key=f"exclude_{i}")
         approved = not exclude
@@ -524,12 +528,17 @@ def generate_word_certificates(entries):
         p_spacer.add_run(" ").font.size = Pt(12)
 
         name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
-        title_size = max(10, round(name_size / 2))
-        safe_title = determine_title_font_size(format_display_title(entry["Title"], entry["Organization"]))
-        while title_size > safe_title and name_size > 20:
-            name_size -= 2
-            title_size = round(name_size / 2)
-        text_size = max(8, round(title_size * 0.75))
+        display_title = format_display_title(entry["Title"], entry["Organization"])
+        if display_title.strip():
+            title_size = max(10, round(name_size / 2))
+            safe_title = determine_title_font_size(display_title)
+            while title_size > safe_title and name_size > 20:
+                name_size -= 2
+                title_size = round(name_size / 2)
+            text_size = max(8, round(title_size * 0.75))
+        else:
+            title_size = 0
+            text_size = max(8, round(name_size / 2))
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
