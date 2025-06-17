@@ -202,7 +202,10 @@ def generate_word_certificates(entries):
     for i, entry in enumerate(entries):
         if i > 0:
             doc.add_page_break()
-        doc.add_paragraph("\n" * 14).runs[0].font.size = Pt(12)
+            text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
+            spacer_lines = max(6, 14 - text_line_count)
+            doc.add_paragraph("\n" * spacer_lines).runs[0].font.size = Pt(12)
+
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
