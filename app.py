@@ -7,6 +7,8 @@ import openai
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
 
 
 # ─── CONFIG ─────────────────────────────────────────────
@@ -189,37 +191,79 @@ from docx.shared import Pt
 from docx.oxml.ns import qn
 
 # ─── Generate Certificates in Word ──────────────────────────────────────
+from docx.enum.text import WD_ALIGN_PARAGRAPH  # ← Make sure this is imported at the top
+
+def determine_font_size(field, value):
+    base_size = {
+        "Name": 32,
+        "Certificate_Text": 16,
+        "Formatted_Date": 14,
+        "Title": 18,
+        "Organization": 14
+    }.get(field, 12)
+
+    if field == "Name":
+        return max(20, base_size - int(len(value) / 2))  # Scale name font down if long
+    elif field == "Certificate_Text":
+        return max(12, base_size - int(len(value) / 10))  # Scale paragraph if very long
+    else:
+        return base_size
+
 def generate_word_certificates(entries, template_path="template.docx"):
     from docx import Document
+    from docx.shared import Pt
 
-    merged_doc = Document()  # Start with a clean document
+    merged_doc = Document()
 
     for i, row in enumerate(entries):
         temp_doc = Document(template_path)
 
         for para in temp_doc.paragraphs:
             new_para = merged_doc.add_paragraph()
+            is_signature = "{{Signature_Block}}" in para.text
 
             for run in para.runs:
                 text = run.text
-                for key, value in row.items():
-                    placeholder = f"{{{{{key}}}}}"
-                    text = text.replace(placeholder, str(value))
-                new_run = new_para.add_run(text)
 
-                # Optional: copy formatting (bold, italic, etc.)
-                new_run.bold = run.bold
-                new_run.italic = run.italic
-                new_run.underline = run.underline
-                new_run.font.name = run.font.name
-                new_run.font.size = run.font.size
+                if "{{Signature_Block}}" in text:
+                    text = text.replace(
+                        "{{Signature_Block}}",
+                        "_____________________________________\n"
+                        " " * 45 + "Stan Ellis\n"
+                        "Assemblyman, 32nd District"
+                    )
+                    new_run = new_para.add_run(text)
+                    new_run.font.name = run.font.name or "Times New Roman"
+                    new_run.font.size = Pt(12)  # Set fixed font size for signature
+                else:
+                    for key, value in row.items():
+                        placeholder = f"{{{{{key}}}}}"
+                        if placeholder in text:
+                            text = text.replace(placeholder, str(value))
+                            font_size = determine_font_size(key, str(value))
+                            new_run = new_para.add_run(text)
+                            new_run.font.size = Pt(font_size)
+                            new_run.font.name = run.font.name or "Times New Roman"
+                            new_run.bold = run.bold
+                            new_run.italic = run.italic
+                            new_run.underline = run.underline
+                            break
+                    else:
+                        new_run = new_para.add_run(text)
+                        new_run.font.size = run.font.size
+                        new_run.font.name = run.font.name
+                        new_run.bold = run.bold
+                        new_run.italic = run.italic
+                        new_run.underline = run.underline
+
+            new_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT if is_signature else WD_ALIGN_PARAGRAPH.CENTER
 
         if i < len(entries) - 1:
             merged_doc.add_page_break()
 
     return merged_doc
 
-
+# Button to generate and download the Word file
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
         doc = generate_word_certificates(cert_rows)
@@ -233,4 +277,3 @@ if st.button("📄 Generate Word Certificates"):
             file_name="Certificates.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
-
