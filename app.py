@@ -404,9 +404,9 @@ def generate_word_certificates(entries):
     section.page_height = Inches(11)
     section.page_width = Inches(8.5)
     section.top_margin = Inches(1)
-    section.bottom_margin = Inches(0.75)
-    section.left_margin = Inches(1)
-    section.right_margin = Inches(1)
+    section.bottom_margin = Inches(0.25)
+    section.left_margin = Inches(.75)
+    section.right_margin = Inches(.75)
 
     for i, entry in enumerate(entries):
         if i > 0:
@@ -461,7 +461,7 @@ def generate_word_certificates(entries):
 
         # Spacer before signature block (1.25")
         sig_spacer = doc.add_paragraph()
-        sig_spacer.paragraph_format.space_before = Pt(50)
+        sig_spacer.paragraph_format.space_before = Pt(40)
         sig_spacer.add_run(" ").font.size = Pt(12)
 
         for line, size in [
