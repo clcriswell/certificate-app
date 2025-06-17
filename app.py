@@ -204,7 +204,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
 
         # 5 line spacing after date
         for _ in range(5):
-            p_pad = doc.add_paragraph("")
+            p_pad = doc.add_paragraph(" ")
             p_pad.paragraph_format.space_before = Pt(0)
             p_pad.paragraph_format.space_after = Pt(0)
             p_pad.runs[0].font.size = Pt(12)
