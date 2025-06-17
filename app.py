@@ -190,27 +190,35 @@ from docx.oxml.ns import qn
 
 # ─── Generate Certificates in Word ──────────────────────────────────────
 def generate_word_certificates(entries, template_path="template.docx"):
-    output_doc = Document()
+    from docx import Document
+
+    merged_doc = Document()  # Start with a clean document
 
     for i, row in enumerate(entries):
         temp_doc = Document(template_path)
 
-        for p in temp_doc.paragraphs:
-            for key, value in row.items():
-                placeholder = f"{{{{{key}}}}}"
-                if placeholder in p.text:
-                    inline = p.runs
-                    for run in inline:
-                        if placeholder in run.text:
-                            run.text = run.text.replace(placeholder, str(value))
+        for para in temp_doc.paragraphs:
+            new_para = merged_doc.add_paragraph()
 
-        for element in temp_doc.element.body:
-            output_doc.element.body.append(element)
+            for run in para.runs:
+                text = run.text
+                for key, value in row.items():
+                    placeholder = f"{{{{{key}}}}}"
+                    text = text.replace(placeholder, str(value))
+                new_run = new_para.add_run(text)
+
+                # Optional: copy formatting (bold, italic, etc.)
+                new_run.bold = run.bold
+                new_run.italic = run.italic
+                new_run.underline = run.underline
+                new_run.font.name = run.font.name
+                new_run.font.size = run.font.size
 
         if i < len(entries) - 1:
-            output_doc.add_page_break()
+            merged_doc.add_page_break()
 
-    return output_doc
+    return merged_doc
+
 
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
