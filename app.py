@@ -180,3 +180,44 @@ if st.button("📥 Download CSV for Mail Merge"):
         file_name="Certificates_MailMerge.csv",
         mime="text/csv"
     )
+    from docx import Document
+from docx.shared import Pt
+from docx.oxml.ns import qn
+
+def generate_word_certificates(entries, template_path="template.docx"):
+    output_doc = Document()
+
+    for i, row in enumerate(entries):
+        temp_doc = Document(template_path)
+
+        for p in temp_doc.paragraphs:
+            for key, value in row.items():
+                placeholder = f"{{{{{key}}}}}"
+                if placeholder in p.text:
+                    inline = p.runs
+                    for run in inline:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, str(value))
+
+        for element in temp_doc.element.body:
+            output_doc.element.body.append(element)
+
+        if i < len(entries) - 1:
+            output_doc.add_page_break()
+
+    return output_doc
+
+if st.button("📄 Generate Word Certificates"):
+    with st.spinner("Generating Word document..."):
+        doc = generate_word_certificates(cert_rows)
+        temp_word = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+        doc.save(temp_word.name)
+        temp_word.seek(0)
+
+        st.download_button(
+            label="⬇️ Download Word Certificates",
+            data=temp_word.read(),
+            file_name="Certificates.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
