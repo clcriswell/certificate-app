@@ -160,8 +160,12 @@ for i, cert in enumerate(cert_rows, 1):
 # ─── WORD CERTIFICATE GENERATION ───────────────────────
 def generate_word_certificates(entries, template_path="template.docx"):
     doc = Document()
+
     for i, entry in enumerate(entries):
-        doc.add_paragraph().paragraph_format.space_before = Pt(200)  # vertical offset
+        if i > 0:
+            doc.add_page_break()
+
+        doc.add_paragraph().paragraph_format.space_before = Pt(200)  # start halfway down
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -174,21 +178,24 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if entry["Organization"].strip():
             p_org = doc.add_paragraph(entry["Organization"])
             p_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_org.runs[0].font.name = "Times New Roman"
-            p_org.runs[0].font.size = Pt(16)
+            run = p_org.runs[0]
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(16)
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
-        p_text.runs[0].font.name = "Times New Roman"
-        p_text.runs[0].font.size = Pt(14)
+        run = p_text.runs[0]
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(14)
 
         for line in entry["Formatted_Date"].split("\n"):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_date.paragraph_format.space_before = Pt(20)
-            p_date.runs[0].font.name = "Times New Roman"
-            p_date.runs[0].font.size = Pt(10)
+            run = p_date.runs[0]
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(10)
 
         for line in [
             "__________________________________________",
@@ -198,11 +205,9 @@ def generate_word_certificates(entries, template_path="template.docx"):
             p_sig = doc.add_paragraph(line)
             p_sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
             p_sig.paragraph_format.space_before = Pt(18)
-            p_sig.runs[0].font.name = "Times New Roman"
-            p_sig.runs[0].font.size = Pt(12)
-
-        if i < len(entries) - 1:
-            doc.add_page_break()
+            run = p_sig.runs[0]
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(12)
 
     return doc
 
