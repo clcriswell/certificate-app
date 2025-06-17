@@ -234,6 +234,12 @@ for i, cert in enumerate(cert_rows):
         if f"text_{i}" in st.session_state:
             st.session_state[f"text_{i}_refined"] = new_text
         st.success("Commendation refined.")
+    new_text = refine_commendation(name, title, org, comment)
+    if new_text:
+        cert["Certificate_Text"] = new_text
+        if f"text_{i}" in st.session_state:
+            st.session_state[f"text_{i}_refined"] = new_text
+        st.success("Commendation refined.")
 
         cert.update({"Certificate_Text": st.session_state.get(f"text_{i}_refined", text),
             "Formatted_Date": cert["Formatted_Date"],
