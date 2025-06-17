@@ -190,28 +190,12 @@ if st.button("📥 Download CSV for Mail Merge"):
 from docx.shared import Pt
 from docx.oxml.ns import qn
 
-# ─── Generate Certificates in Word ──────────────────────────────────────
-from docx.enum.text import WD_ALIGN_PARAGRAPH  # ← Make sure this is imported at the top
-
-def determine_font_size(field, value):
-    base_size = {
-        "Name": 32,
-        "Certificate_Text": 16,
-        "Formatted_Date": 14,
-        "Title": 18,
-        "Organization": 14
-    }.get(field, 12)
-
-    if field == "Name":
-        return max(20, base_size - int(len(value) / 2))  # Scale name font down if long
-    elif field == "Certificate_Text":
-        return max(12, base_size - int(len(value) / 10))  # Scale paragraph if very long
-    else:
-        return base_size
+# ─── Generate Certificates in Word ─────────────────────────────────────
 
 def generate_word_certificates(entries, template_path="template.docx"):
     from docx import Document
     from docx.shared import Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     merged_doc = Document()
 
@@ -226,42 +210,55 @@ def generate_word_certificates(entries, template_path="template.docx"):
                 text = run.text
 
                 if "{{Signature_Block}}" in text:
-                    text = text.replace(
-                        "{{Signature_Block}}",
-                        "_____________________________________\n"
-                        " " * 45 + "Stan Ellis\n"
-                        "Assemblyman, 32nd District"
+                    # Create extended signature block
+                    signature_block = (
+                        " " * 30 + "__________________________________________\n"
+                        " " * 65 + "Stan Ellis\n"
+                        " " * 55 + "Assemblyman, 32nd District"
                     )
+                    text = text.replace("{{Signature_Block}}", signature_block)
                     new_run = new_para.add_run(text)
-                    new_run.font.name = run.font.name or "Times New Roman"
-                    new_run.font.size = Pt(12)  # Set fixed font size for signature
-                else:
-                    for key, value in row.items():
-                        placeholder = f"{{{{{key}}}}}"
-                        if placeholder in text:
-                            text = text.replace(placeholder, str(value))
-                            font_size = determine_font_size(key, str(value))
-                            new_run = new_para.add_run(text)
-                            new_run.font.size = Pt(font_size)
-                            new_run.font.name = run.font.name or "Times New Roman"
-                            new_run.bold = run.bold
-                            new_run.italic = run.italic
-                            new_run.underline = run.underline
-                            break
-                    else:
-                        new_run = new_para.add_run(text)
-                        new_run.font.size = run.font.size
-                        new_run.font.name = run.font.name
-                        new_run.bold = run.bold
-                        new_run.italic = run.italic
-                        new_run.underline = run.underline
+                    new_run.font.name = "Times New Roman"
+                    new_run.font.size = Pt(12)
+                    new_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    continue
 
-            new_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT if is_signature else WD_ALIGN_PARAGRAPH.CENTER
+                for key, value in row.items():
+                    placeholder = f"{{{{{key}}}}}"
+                    if placeholder in text:
+                        text = text.replace(placeholder, str(value))
+                        new_run = new_para.add_run(text)
+                        new_run.font.name = "Times New Roman"
+
+                        if key == "Name":
+                            new_run.font.bold = True
+                            new_run.font.size = Pt(determine_font_size("Name", value))  # e.g., 26–32
+                        elif key == "Title":
+                            new_run.font.bold = True
+                            new_run.font.size = Pt(18)
+                        elif key in ["Certificate_Text", "Formatted_Date"]:
+                            new_run.font.size = Pt(14)
+                        else:
+                            new_run.font.size = Pt(12)
+
+                        break
+                else:
+                    new_run = new_para.add_run(text)
+                    new_run.font.size = run.font.size
+                    new_run.font.name = run.font.name
+                    new_run.bold = run.bold
+                    new_run.italic = run.italic
+                    new_run.underline = run.underline
+
+            # Everything but signature is center-aligned
+            if not is_signature:
+                new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         if i < len(entries) - 1:
             merged_doc.add_page_break()
 
     return merged_doc
+
 
 # Button to generate and download the Word file
 if st.button("📄 Generate Word Certificates"):
