@@ -414,7 +414,7 @@ def generate_word_certificates(entries):
 
         # Initial spacer so the name block begins 4.5" from the top
         p_spacer = doc.add_paragraph()
-        p_spacer.paragraph_format.space_before = Pt(252)  # 3.5" after 1" margin
+        p_spacer.paragraph_format.space_before = Pt(200)  # 3.5" after 1" margin
         p_spacer.add_run(" ").font.size = Pt(12)
 
         name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
