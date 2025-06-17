@@ -166,6 +166,8 @@ You will be given the full text of a certificate request. Your task is to extrac
 - Carefully interpret the context of the event and the nature of each person's recognition
 - If more than one name or organization appears in a single entry, set \"possible_split\": true
 - If you're uncertain about name, title, or org, return multiple options inside \"alternatives\"
+- If an organization appears to be hosting the event, omit it from the recipient's title
+- Only include "title" of "organization" when someone from that organization is receiving recognition from the host
 
 Each certificate must include:
 - name
