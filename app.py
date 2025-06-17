@@ -118,16 +118,18 @@ DO NOT include markdown (like ```), explanations, or extra text.
 cert_rows = []
 
 try:
-    response = openai.ChatCompletion.create(
-        model=OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": pdf_text}
-        ],
-        temperature=0
-    )
+client = openai.OpenAI()  # uses default key from st.secrets
 
-    content = response["choices"][0]["message"]["content"]
+response = client.chat.completions.create(
+    model=OPENAI_MODEL,
+    messages=[
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": pdf_text}
+    ],
+    temperature=0
+)
+content = response.choices[0].message.content
+
 
     # 🧾 Show GPT output for debugging
     st.subheader("🧾 Raw GPT Output (Debug)")
