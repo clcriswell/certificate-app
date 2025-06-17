@@ -140,8 +140,10 @@ try:
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
-        if parsed.get("title", "").strip().lower() == "certificate of recognition":
+        title = parsed.get("title") or ""
+            if title.strip().lower() == "certificate of recognition":
             parsed["title"] = ""
+
 
         commendation = parsed.get("commendation", "").strip()
         if not commendation:
