@@ -8,7 +8,6 @@ from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-# ─── CONFIG ─────────────────────────────────────────────
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
@@ -35,21 +34,22 @@ def format_certificate_date(raw_date_str):
     }.get(dt.strftime("%Y"), dt.strftime("%Y"))
     return f"Dated the {day}{suffix} of {month}\n{year_words}"
 
-def fallback_commendation(name, title, org):
-    title_lower = title.lower()
-    if "award" in title_lower or "of the year" in title_lower or "honoree" in title_lower:
-        msg = f"On behalf of the California State Legislature, congratulations on being recognized as {org}'s {title}. "
-    elif any(kw in title_lower for kw in ["president", "officer", "board", "service", "chair", "director"]):
-        msg = f"On behalf of the California State Legislature, thank you for your service as {title} with {org}. "
-    elif "opening" in title_lower or "grand" in title_lower:
-        msg = f"On behalf of the California State Legislature, congratulations on the opening of {org}. "
-    elif "graduat" in title_lower:
-        msg = f"On behalf of the California State Legislature, congratulations on successfully graduating from {org}. "
-    else:
-        msg = f"On behalf of the California State Legislature, we commend you for your accomplishments with {org}. "
-    msg += "This recognition speaks highly of your dedication and contributions to the community."
-    return msg
+# ─── UI SETUP ───────────────────────────────────────────
+st.set_page_config(layout="centered")
+st.title("📑 Certificate CSV Generator (Multi-Entry)")
+st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
 
+pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
+if not pdf_file:
+    st.stop()
+
+with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    tmp.write(pdf_file.read())
+    tmp_path = tmp.name
+pdf_text = extract_text(tmp_path)
+os.remove(tmp_path)
+
+# ─── GPT PROMPT ─────────────────────────────────────────
 def categorize_tone(title):
     title_lower = title.lower()
     if any(kw in title_lower for kw in ["award", "of the year", "honoree", "achievement", "excellence", "inductee"]):
@@ -63,31 +63,6 @@ def categorize_tone(title):
     else:
         return "📝 Recognition"
 
-def extract_event_date(text):
-    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}", text)
-    if match:
-        return match.group(0)
-    match = re.search(r"\d{1,2}/\d{1,2}/20\d{2}", text)
-    if match:
-        return match.group(0)
-    return "unknown"
-
-# ─── UI ────────────────────────────────────────────────
-st.set_page_config(layout="centered")
-st.title("📁 Certificate CSV Generator (Multi-Entry)")
-st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
-
-pdf_file = st.file_uploader("📏 Upload Certificate Request PDF", type=["pdf"])
-if not pdf_file:
-    st.stop()
-
-with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-    tmp.write(pdf_file.read())
-    tmp_path = tmp.name
-pdf_text = extract_text(tmp_path)
-os.remove(tmp_path)
-
-# ─── GPT PROMPT ─────────────────────────────────────────
 event_date = extract_event_date(pdf_text)
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
@@ -154,74 +129,69 @@ if st.button("📥 Download CSV for Mail Merge"):
     df = pd.DataFrame(cert_rows)
     csv_buffer = io.BytesIO()
     df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
-    csv_data = csv_buffer.getvalue()
     st.download_button(
         label="📊 Download CSV",
-        data=csv_data,
+        data=csv_buffer.getvalue(),
         file_name="Certificates_MailMerge.csv",
         mime="text/csv"
     )
 
-# ─── WORD OUTPUT ────────────────────────────────────────
+# ─── GENERATE WORD ──────────────────────────────────────
 def generate_word_certificates(entries, template_path="template.docx"):
     merged_doc = Document()
     for i, row in enumerate(entries):
-        temp_doc = Document(template_path)
-        top_spacer = merged_doc.add_paragraph()
-        top_spacer.paragraph_format.space_before = Pt(200)
-        for para in temp_doc.paragraphs:
-            new_para = merged_doc.add_paragraph()
-            is_signature = "{{Signature_Block}}" in para.text
-            for run in para.runs:
-                text = run.text
-                if "{{Signature_Block}}" in text:
-                    for line_text in [
-                        "__________________________________________",
-                        "Stan Ellis",
-                        "Assemblyman, 32nd District"
-                    ]:
-                        sig_para = merged_doc.add_paragraph(line_text)
-                        sig_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                        sig_para.paragraph_format.space_before = Pt(20)
-                        sig_run = sig_para.runs[0]
-                        sig_run.font.name = "Times New Roman"
-                        sig_run.font.size = Pt(12)
-                    break
-                for key, value in row.items():
-                    placeholder = f"{{{{{key}}}}}"
-                    if placeholder in text:
-                        text = text.replace(placeholder, str(value))
-                        new_run = new_para.add_run(text)
-                        new_run.font.name = "Times New Roman"
-                        if key == "Name":
-                            name_length = len(str(value))
-                            size = 64 if name_length <= 12 else 52 if name_length <= 18 else 44 if name_length <= 24 else 36 if name_length <= 30 else 28
-                            new_run.font.bold = True
-                            new_run.font.size = Pt(size)
-                            new_para.paragraph_format.space_after = Pt(2)
-                        elif key == "Title":
-                            new_run.font.bold = True
-                            new_run.font.size = Pt(18)
-                        elif key == "Certificate_Text":
-                            new_run.font.size = Pt(16)
-                            new_para.paragraph_format.space_before = Pt(20)
-                        elif key == "Formatted_Date":
-                            new_run.font.size = Pt(10)
-                            new_para.paragraph_format.space_before = Pt(20)
-                        else:
-                            new_run.font.size = Pt(12)
-                        break
-                else:
-                    new_run = new_para.add_run(text)
-                    new_run.font.size = run.font.size
-                    new_run.font.name = run.font.name
-                    new_run.bold = run.bold
-                    new_run.italic = run.italic
-                    new_run.underline = run.underline
-            if not is_signature:
-                new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        spacer = merged_doc.add_paragraph()
+        spacer.paragraph_format.space_before = Pt(300)
+
+        para_name = merged_doc.add_paragraph()
+        para_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run_name = para_name.add_run(row["Name"])
+        run_name.font.name = "Times New Roman"
+        run_name.font.bold = True
+        name_length = len(row["Name"])
+        size = 60 if name_length <= 12 else 48 if name_length <= 18 else 40 if name_length <= 24 else 32 if name_length <= 30 else 28
+        run_name.font.size = Pt(size)
+        para_name.paragraph_format.space_after = Pt(2)
+
+        if row["Organization"].strip():
+            para_org = merged_doc.add_paragraph()
+            para_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run_org = para_org.add_run(row["Organization"])
+            run_org.font.name = "Times New Roman"
+            run_org.font.size = Pt(16)
+            para_org.paragraph_format.space_after = Pt(16)
+
+        para_text = merged_doc.add_paragraph()
+        para_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para_text.paragraph_format.space_before = Pt(20)
+        run_text = para_text.add_run(row["Certificate_Text"])
+        run_text.font.name = "Times New Roman"
+        run_text.font.size = Pt(14)
+
+        if row.get("Formatted_Date"):
+            for line in row["Formatted_Date"].split("\n"):
+                para_date = merged_doc.add_paragraph()
+                para_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                para_date.paragraph_format.space_before = Pt(20)
+                run_date = para_date.add_run(line)
+                run_date.font.name = "Times New Roman"
+                run_date.font.size = Pt(10)
+
+        for line_text in [
+            "__________________________________________",
+            "Stan Ellis",
+            "Assemblyman, 32nd District"
+        ]:
+            sig_para = merged_doc.add_paragraph(line_text)
+            sig_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            sig_para.paragraph_format.space_before = Pt(20)
+            sig_run = sig_para.runs[0]
+            sig_run.font.name = "Times New Roman"
+            sig_run.font.size = Pt(12)
+
         if i < len(entries) - 1:
             merged_doc.add_page_break()
+
     return merged_doc
 
 if st.button("📄 Generate Word Certificates"):
