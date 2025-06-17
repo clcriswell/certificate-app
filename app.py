@@ -149,8 +149,15 @@ try:
         })
 
 except Exception as e:
-    st.error("⚠️ GPT failed to extract entries. Here's what it returned:")
-    st.code(content if 'content' in locals() else "No content received.")
+    st.error("⚠️ GPT failed to extract entries.")
+    if 'response' in locals():
+        st.code(response, language="json")
+    elif 'content' in locals():
+        st.code(content)
+    else:
+        st.text("No content received. Exception details:")
+        st.text(str(e))
+
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
