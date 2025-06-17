@@ -139,37 +139,34 @@ try:
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
     parsed_entries = json.loads(cleaned)
 
-for parsed in parsed_entries:
-    name = parsed.get("name") or "Recipient"
-    title = parsed.get("title") or ""
-    org = parsed.get("organization") or ""
-    commendation = parsed.get("commendation") or ""
+    for parsed in parsed_entries:
+        name = parsed.get("name") or "Recipient"
+        title = parsed.get("title") or ""
+        org = parsed.get("organization") or ""
+        commendation = parsed.get("commendation") or ""
 
-    # Remove redundant title
-    if title.strip().lower() == "certificate of recognition":
-        title = ""
+        if title.strip().lower() == "certificate of recognition":
+            title = ""
 
-    if not commendation.strip():
-        commendation = enhanced_commendation(name, title, org)
+        if not commendation.strip():
+            commendation = enhanced_commendation(name, title, org)
 
-    cert_rows.append({
-        "Name": name,
-        "Title": title,
-        "Organization": org,
-        "Certificate_Text": commendation,
-        "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
-        "Tone_Category": "📝",
-        "possible_split": parsed.get("possible_split", False),
-        "alternatives": parsed.get("alternatives", {})
-    })
-
-
-
+        cert_rows.append({
+            "Name": name,
+            "Title": title,
+            "Organization": org,
+            "Certificate_Text": commendation,
+            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+            "Tone_Category": "📝",
+            "possible_split": parsed.get("possible_split", False),
+            "alternatives": parsed.get("alternatives", {})
+        })
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text(str(e))
     st.stop()
+
 
 # ─── REVIEW + PREVIEW UI ─────────────────────────────────────
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
