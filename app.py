@@ -1,8 +1,9 @@
 import streamlit as st
-import re, os, json, tempfile, io
+import os
+import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
-import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -28,11 +29,17 @@ def format_certificate_date(raw_date_str):
     day = dt.day
     suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     month = dt.strftime("%B")
-    year_words = {
-        "2025": "Two Thousand and Twenty-Five",
-        "2024": "Two Thousand and Twenty-Four",
-        "2023": "Two Thousand and Twenty-Three"
-    }.get(dt.strftime("%Y"), dt.strftime("%Y"))
+    year_map = {
+        2023: "Two Thousand and Twenty-Three",
+        2024: "Two Thousand and Twenty-Four",
+        2025: "Two Thousand and Twenty-Five",
+        2026: "Two Thousand and Twenty-Six",
+        2027: "Two Thousand and Twenty-Seven",
+        2028: "Two Thousand and Twenty-Eight",
+        2029: "Two Thousand and Twenty-Nine",
+        2030: "Two Thousand and Thirty",
+    }
+    year_words = year_map.get(dt.year, dt.strftime("%Y"))
     return f"Dated the {day}{suffix} of {month}\n{year_words}"
 
 def determine_name_font_size(name):
