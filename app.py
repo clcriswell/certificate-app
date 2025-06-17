@@ -57,12 +57,12 @@ def enhanced_commendation(name, title, org):
 st.set_page_config(layout="centered")
 st.title("📑 Certificate Review Assistant")
 
-st.markdown("### 📎 Step 1: Upload a certificate request PDF or paste text")
+st.markdown("### 📎 Upload a PDF or Paste a Certificate Request")
 pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
 text_input = st.text_area("Or paste certificate request text here", height=300)
 
 if not pdf_file and not text_input.strip():
-    st.warning("Please upload a PDF or paste text to continue.")
+    st.warning("Please upload a PDF or paste request text.")
     st.stop()
 
 if pdf_file:
@@ -80,22 +80,21 @@ SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
-- If more than one name or organization appears in a single entry (e.g., "Jane Smith and John Doe"), set "possible_split": true
-- If you're uncertain about the correct value for name, title, or organization, return multiple options inside an "alternatives" dictionary
+- If more than one name or organization appears in a single entry, set "possible_split": true
+- If you're uncertain about name, title, or org, return multiple options inside "alternatives"
 
 Each certificate must include:
 - name
-- title (award or position — do NOT use "Certificate of Recognition")
+- title (NOT "Certificate of Recognition")
 - organization (if applicable)
-- date_raw (use the event date if no specific date is listed)
-- commendation: a 2–3 sentence message beginning with "On behalf of the California State Legislature..." that reflects what the recipient is being honored for, ties to the community or cause, and ends with well wishes
+- date_raw (or fallback to event date)
+- commendation: 2–3 sentence message starting with “On behalf of the California State Legislature...” that honors their work and ends with well wishes
 - optional: possible_split (true/false)
-- optional: alternatives (dictionary of possible values for name, title, org, etc.)
+- optional: alternatives (dictionary)
 
 The event date is: {event_date}
 
-Return ONLY the JSON in this format:
-[{{"name": "Jane Smith", "title": "Volunteer of the Year", "organization": "Good Neighbors Foundation", "date_raw": "June 12, 2025", "commendation": "...", "possible_split": true, "alternatives": {{ "name": ["Jane Smith", "John Doe"] }} }}]
+Return ONLY valid JSON.
 """
 
 cert_rows = []
@@ -115,111 +114,94 @@ try:
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
-    if parsed.get("title", "").strip().lower() == "certificate of recognition":
-        parsed["title"] = ""
+        if parsed.get("title", "").strip().lower() == "certificate of recognition":
+            parsed["title"] = ""
 
-    commendation = parsed.get("commendation", "").strip()
-    if not commendation:
-        commendation = enhanced_commendation(
-            parsed.get("name", "Recipient"),
-            parsed.get("title", "Awardee"),
-            parsed.get("organization", "")
-        )
+        commendation = parsed.get("commendation", "").strip()
+        if not commendation:
+            commendation = enhanced_commendation(
+                parsed.get("name", "Recipient"),
+                parsed.get("title", "Awardee"),
+                parsed.get("organization", "")
+            )
 
-    cert_rows.append({
-        "Name": parsed.get("name", "Recipient"),
-        "Title": parsed.get("title", ""),
-        "Organization": parsed.get("organization", ""),
-        "Certificate_Text": commendation,
-        "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
-        "Tone_Category": categorize_tone(parsed.get("title", "")),
-        "possible_split": parsed.get("possible_split", False),
-        "alternatives": parsed.get("alternatives", {})
-    })
+        cert_rows.append({
+            "Name": parsed.get("name", "Recipient"),
+            "Title": parsed.get("title", ""),
+            "Organization": parsed.get("organization", ""),
+            "Certificate_Text": commendation,
+            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+            "Tone_Category": "📝",
+            "possible_split": parsed.get("possible_split", False),
+            "alternatives": parsed.get("alternatives", {})
+        })
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text(str(e))
     st.stop()
-# ─── REVIEW ASSISTANT ─────────────────────────────────────────────────
+
+# ——— REVIEW & PREVIEW UI ———
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
     with st.expander(f"📝 {cert['Name']} – {cert['Title']}"):
 
-        # SPLIT SUGGESTION
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
-            decision = st.radio("Would you like to split this into two?", ["Keep as one", "Split into two"], key=f"split_{i}")
+            decision = st.radio("Would you like to split this?", ["Keep as one", "Split into two"], key=f"split_{i}")
             if decision == "Split into two" and cert.get("alternatives", {}).get("name"):
                 for alt_name in cert["alternatives"]["name"]:
-                    st.markdown(f"### 🎓 Certificate for {alt_name}")
                     name = st.text_input("Name", value=alt_name, key=f"name_{i}_{alt_name}")
-                    title = st.text_input("Title", value=cert["title"], key=f"title_{i}_{alt_name}")
-                    org = st.text_input("Organization", value=cert["organization"], key=f"org_{i}_{alt_name}")
+                    title = st.text_input("Title", value=cert["Title"], key=f"title_{i}_{alt_name}")
+                    org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}_{alt_name}")
                     text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}_{alt_name}")
                     approved = st.checkbox("✅ Approve", value=True, key=f"approve_{i}_{alt_name}")
                     final_cert_rows.append({
-                        "approved": approved,
-                        "Name": name,
-                        "Title": title,
-                        "Organization": org,
-                        "Certificate_Text": text,
-                        "Formatted_Date": cert["Formatted_Date"],
-                        "Tone_Category": cert["Tone_Category"]
+                        "approved": approved, "Name": name, "Title": title,
+                        "Organization": org, "Certificate_Text": text,
+                        "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
                     })
-                continue  # Skip rest of this loop
+                continue
 
-        # ALTERNATIVE SELECTORS (if available)
         alt = cert.get("alternatives", {})
-        name = st.selectbox("Name", options=alt.get("name", [cert["name"]]), key=f"name_{i}")
-        title = st.selectbox("Title", options=alt.get("title", [cert["title"]]), key=f"title_{i}")
-        org = st.selectbox("Organization", options=alt.get("organization", [cert["organization"]]), key=f"org_{i}")
+        name = st.selectbox("Name", options=alt.get("name", [cert["Name"]]), key=f"name_{i}")
+        title = st.selectbox("Title", options=alt.get("title", [cert["Title"]]), key=f"title_{i}")
+        org = st.selectbox("Organization", options=alt.get("organization", [cert["Organization"]]), key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
 
         final_cert_rows.append({
-            "approved": approved,
-            "Name": name,
-            "Title": title,
-            "Organization": org,
-            "Certificate_Text": text,
-            "Formatted_Date": cert["Formatted_Date"],
-            "Tone_Category": cert["Tone_Category"]
+            "approved": approved, "Name": name, "Title": title,
+            "Organization": org, "Certificate_Text": text,
+            "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
         })
 
-        # LIVE PREVIEW
+        # PREVIEW
         st.markdown("---")
         st.markdown("#### 📄 Certificate Preview")
-        preview_lines = []
-
-        preview_lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
+        lines = []
+        lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
         if title.strip():
-            preview_lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{title}</div>")
+            lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{title}</div>")
         if org.strip():
-            preview_lines.append(f"<div style='text-align:center; font-size:18px;'>{org}</div>")
-
-        preview_lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
-
+            lines.append(f"<div style='text-align:center; font-size:18px;'>{org}</div>")
+        lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
         for line in cert["Formatted_Date"].split("\n"):
-            preview_lines.append(f"<div style='text-align:center; font-size:12px; margin-top:20px;'>{line}</div>")
+            lines.append(f"<div style='text-align:center; font-size:12px; margin-top:20px;'>{line}</div>")
+        lines.append("<br>" * 5)
+        lines.append(f"<div style='text-align:right; font-size:12px;'>_____________________________________</div>")
+        lines.append(f"<div style='text-align:right; font-size:14px;'>Stan Ellis</div>")
+        lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
+        st.markdown("<br>".join(lines), unsafe_allow_html=True)
 
-        preview_lines.append("<br>" * 5)
-        preview_lines.append(f"<div style='text-align:right; font-size:12px;'>_____________________________________</div>")
-        preview_lines.append(f"<div style='text-align:right; font-size:14px;'>Stan Ellis</div>")
-        preview_lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
-
-        st.markdown("<br>".join(preview_lines), unsafe_allow_html=True)
-
-# ─── WORD GENERATION ───────────────────────────────────────────────
+# ——— GENERATE WORD DOC ———
 def generate_word_certificates(entries):
     doc = Document()
-
     for i, entry in enumerate(entries):
         if i > 0:
             doc.add_page_break()
-
         doc.add_paragraph("\n" * 14).runs[0].font.size = Pt(12)
 
         p_name = doc.add_paragraph(entry["Name"])
@@ -251,30 +233,28 @@ def generate_word_certificates(entries):
             p_date.runs[0].font.size = Pt(12)
 
         for _ in range(5):
-            pad = doc.add_paragraph(" ")
-            pad.paragraph_format.space_before = Pt(0)
-            pad.paragraph_format.space_after = Pt(0)
-            pad.runs[0].font.size = Pt(12)
+            spacer = doc.add_paragraph(" ")
+            spacer.paragraph_format.space_before = Pt(0)
+            spacer.paragraph_format.space_after = Pt(0)
+            spacer.runs[0].font.size = Pt(12)
 
         for line, size in [
             ("_____________________________________", 12),
             ("Stan Ellis", 14),
             ("Assemblyman, 32nd District", 14)
         ]:
-            p_sig = doc.add_paragraph(line)
-            p_sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            p_sig.paragraph_format.space_before = Pt(0)
-            p_sig.paragraph_format.space_after = Pt(0)
-            p_sig.runs[0].font.name = "Times New Roman"
-            p_sig.runs[0].font.size = Pt(size)
-
+            sig = doc.add_paragraph(line)
+            sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            sig.paragraph_format.space_before = Pt(0)
+            sig.paragraph_format.space_after = Pt(0)
+            sig.runs[0].font.name = "Times New Roman"
+            sig.runs[0].font.size = Pt(size)
     return doc
 
-# ─── GENERATE WORD DOC BUTTON ──────────────────────────────────────
 if st.button("📄 Generate Word Certificates"):
     approved_entries = [c for c in final_cert_rows if c["approved"]]
     if not approved_entries:
-        st.error("No certificates approved.")
+        st.error("No certificates were approved.")
     else:
         with st.spinner("Generating Word document..."):
             doc = generate_word_certificates(approved_entries)
@@ -282,8 +262,9 @@ if st.button("📄 Generate Word Certificates"):
             doc.save(tmp.name)
             tmp.seek(0)
             st.download_button(
-                label="⬇️ Download Certificates",
+                label="⬇️ Download Word Certificates",
                 data=tmp.read(),
                 file_name="Certificates.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
+
