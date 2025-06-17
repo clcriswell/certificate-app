@@ -139,18 +139,17 @@ try:
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
     parsed_entries = json.loads(cleaned)
 
-    for parsed in parsed_entries:
-        name = parsed.get("name") or "Recipient"
-        title = parsed.get("title") or ""
-        org = parsed.get("organization") or ""
-        commendation = parsed.get("commendation") or ""
+for parsed in parsed_entries:
+    name = parsed.get("name") or "Recipient"
+    title = parsed.get("title") or ""
+    org = parsed.get("organization") or ""
+    commendation = parsed.get("commendation") or ""
 
     # Remove redundant title
-        if title.strip().lower() == "certificate of recognition":
+    if title.strip().lower() == "certificate of recognition":
         title = ""
 
-    # Fallback commendation if GPT didn’t return one
-        if not commendation.strip():
+    if not commendation.strip():
         commendation = enhanced_commendation(name, title, org)
 
     cert_rows.append({
@@ -163,6 +162,8 @@ try:
         "possible_split": parsed.get("possible_split", False),
         "alternatives": parsed.get("alternatives", {})
     })
+
+
 
 
 except Exception as e:
