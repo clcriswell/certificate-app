@@ -461,7 +461,7 @@ def generate_word_certificates(entries):
 
         # Spacer before signature block (1.25")
         sig_spacer = doc.add_paragraph()
-        sig_spacer.paragraph_format.space_before = Pt(80)
+        sig_spacer.paragraph_format.space_before = Pt(50)
         sig_spacer.add_run(" ").font.size = Pt(12)
 
         for line, size in [
