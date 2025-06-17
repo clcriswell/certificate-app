@@ -84,9 +84,16 @@ def log_certificates(original_data, final_data, event_text, source="pasted", glo
     timestamp = datetime.now().isoformat(timespec="seconds")
     log_file = log_dir / f"cert_logs_{timestamp[:10]}.jsonl"
     with log_file.open("a", encoding="utf-8") as f:
-        for original, final in zip(original_data, final_data):
+        placeholder = {
+            "name": "",
+            "title": "",
+            "organization": "",
+            "commendation": "",
+        }
+        for idx, final in enumerate(final_data):
             if not final.get("approved"):
                 continue
+            original = original_data[idx] if idx < len(original_data) else placeholder
             entry = {
                 "timestamp": timestamp,
                 "source": source,
@@ -101,7 +108,7 @@ def log_certificates(original_data, final_data, event_text, source="pasted", glo
                 "final_commendation": final.get("Certificate_Text", ""),
                 "approved": True,
                 "reviewer_comment": final.get("reviewer_comment", ""),
-                "global_comment": global_comment
+                "global_comment": global_comment,
             }
             f.write(json.dumps(entry) + "\n")
 
