@@ -89,7 +89,7 @@ def determine_title_font_size(title):
     return 18
 
 def format_display_title(title: str, org: str) -> str:
-    """Return a human-friendly combination of title and organization."""
+    """Return either the title or organization depending on context."""
     title_clean = title.strip()
     org_clean = org.strip()
 
@@ -98,16 +98,22 @@ def format_display_title(title: str, org: str) -> str:
     if not title_clean or title_clean.lower() in generic_titles or title_clean.lower() == org_clean.lower():
         return org_clean
 
-    if title_clean and org_clean:
-        return f"{title_clean} of {org_clean}"
-
     return title_clean or org_clean
 
 def enhanced_commendation(name, title, org):
-    base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
-    middle = "This honor reflects your dedication and the meaningful contributions you’ve made to our community."
-    close = "I wish you all the best in your future endeavors."
-    return f"{base} {middle} {close}"
+    parts = ["On behalf of the California State Legislature, it is my honor to recognize"]
+    if title and org:
+        parts.append(f"your exemplary service as {title} with {org}.")
+    elif title:
+        parts.append(f"your exemplary service as {title}.")
+    elif org:
+        parts.append(f"your exemplary service with {org}.")
+    else:
+        parts.append("your exemplary service.")
+
+    middle = "This accolade reflects your dedication and significant contributions to our community."
+    close = "Please accept my best wishes for your continued success."
+    return " ".join(parts + [middle, close])
 
 def log_certificates(original_data, final_data, event_text, source="pasted", global_comment=""):
     log_dir = Path("logs")
