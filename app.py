@@ -387,7 +387,8 @@ for i, cert in enumerate(cert_rows, 1):
         title_size = determine_title_font_size(format_display_title(title, org))
         text_size = 14
         date_size = 12
-        approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
+        exclude = st.checkbox("🚫 Exclude this certificate", value=False, key=f"exclude_{i}")
+        approved = not exclude
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
         prev_comment = cert.get("reviewer_comment", "")
