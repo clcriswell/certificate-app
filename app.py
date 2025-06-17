@@ -161,6 +161,13 @@ for i, cert in enumerate(cert_rows, 1):
         st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"commendation_{i}")
 
 # ─── WORD CERTIFICATE GENERATION ───────────────────────
+def determine_title_font_size(title):
+    length = len(title)
+    if length <= 20: return 28
+    if length <= 30: return 24
+    if length <= 36: return 20
+    return 18
+
 def generate_word_certificates(entries, template_path="template.docx"):
     doc = Document()
 
@@ -168,8 +175,10 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
+        # Vertical spacer (~half page)
         doc.add_paragraph("\n" * 14).runs[0].font.size = Pt(12)
 
+        # NAME (large, bold, centered)
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p_name.runs[0]
@@ -178,14 +187,16 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
+        # TITLE (bold, font scales with length)
         if entry["Title"].strip():
             p_title = doc.add_paragraph(entry["Title"])
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             run = p_title.runs[0]
             run.bold = True
             run.font.name = "Times New Roman"
-            run.font.size = Pt(28)
+            run.font.size = Pt(determine_title_font_size(entry["Title"]))
 
+        # COMMENDATION TEXT
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
@@ -193,7 +204,9 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.name = "Times New Roman"
         run.font.size = Pt(14)
 
-        for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
+        # DATE BLOCK (two lines, 12pt, no spacing between lines)
+        date_lines = entry["Formatted_Date"].split("\n")
+        for idx, line in enumerate(date_lines):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 20)
@@ -202,13 +215,14 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.name = "Times New Roman"
             run.font.size = Pt(12)
 
-        # 5 line spacing after date
+        # 5 lines of spacing after date (12pt)
         for _ in range(5):
             p_pad = doc.add_paragraph(" ")
             p_pad.paragraph_format.space_before = Pt(0)
             p_pad.paragraph_format.space_after = Pt(0)
             p_pad.runs[0].font.size = Pt(12)
 
+        # SIGNATURE BLOCK (no spacing between lines)
         for line, size in [
             ("_____________________________________", 12),
             ("Stan Ellis", 14),
@@ -223,6 +237,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.size = Pt(size)
 
     return doc
+
 
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
 if st.button("📄 Generate Word Certificates"):
