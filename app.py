@@ -121,30 +121,42 @@ else:
 event_date = extract_event_date(pdf_text)
 
 SYSTEM_PROMPT = f"""
-You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one, generate a thoughtfully written commendation that reflects the specific context and purpose of the event.
+You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
+
+- Carefully interpret the context of the event and the nature of each person's recognition
+- If more than one name or organization appears in a single entry (e.g., "Jane Smith and John Doe"), set `"possible_split": true`
+- If you're uncertain about the correct value for name, title, or organization, return multiple options inside an `"alternatives"` dictionary
+
+Each certificate must include:
+- name
+- title (award or position — do NOT use "Certificate of Recognition")
+- organization (if applicable)
+- date_raw (use the event date if no specific date is listed)
+- commendation: a 2–3 sentence message beginning with "On behalf of the California State Legislature..." that reflects what the recipient is being honored for, ties to the community or cause, and ends with well wishes
+- optional: possible_split (true/false)
+- optional: alternatives (dictionary of possible values for name, title, org, etc.)
 
 The event date is: {event_date}
 
-Each certificate output must include:
-- name
-- title (award or position — do NOT use "Certificate of Recognition")
-- organization (if mentioned)
-- date_raw (use the event date if no specific date is listed)
-- commendation: a 2–3 sentence message beginning with "On behalf of the California State Legislature..." that reflects what the recipient is being honored for, ties to the community or cause, and ends with well wishes
-
-Here is the format you must return:
+Return ONLY the JSON in this format:
 [
   {{
-    "name": "Jane Smith",
-    "title": "Volunteer of the Year",
-    "organization": "Good Neighbors Foundation",
-    "date_raw": "June 12, 2025",
-    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your dedication to the Good Neighbors Foundation has had a lasting impact. I wish you all the best in your future endeavors."
+    "name": "Jane Smith and John Doe",
+    "title": "Volunteer Leaders",
+    "organization": "Kern Community Outreach",
+    "date_raw": "June 15, 2025",
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer Leaders. Your dedication to Kern Community Outreach has had a lasting impact. I wish you all the best in your future endeavors.",
+    "possible_split": true,
+    "alternatives": {{
+      "name": ["Jane Smith", "John Doe"],
+      "organization": ["Kern Community Outreach", "Kern Volunteer Team"]
+    }}
   }}
 ]
 
-Return ONLY the JSON. Do not include markdown, headers, explanations, or anything else.
+DO NOT include markdown (like ```), explanations, titles, or any text outside the JSON.
 """
+
 
 
 cert_rows = []
@@ -188,15 +200,67 @@ except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text(str(e))
 
-# ─── PREVIEW ────────────────────────────────────────────
-st.subheader("👁 Preview Extracted Certificates")
+# ─── REVIEW ASSISTANT: PREVIEW, EDIT, SPLIT ─────────────────────────────
+st.subheader("👁 Review & Approve Certificates")
+
+final_cert_rows = []
+
 for i, cert in enumerate(cert_rows, 1):
     with st.expander(f"{cert['Tone_Category']} #{i}: {cert['Name']} – {cert['Title']}"):
-        st.write(f"**Organization:** {cert['Organization']}")
-        st.write(f"**Date:** {cert['Formatted_Date']}")
-        st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"commendation_{i}")
+
+        st.write("📝 **Review and edit fields below**")
+
+        # Possible split warning
+        if cert.get("possible_split", False):
+            st.warning("⚠️ This may be two certificates. Would you like to split it?")
+            split_decision = st.radio(f"Split this certificate?", ["Keep as one", "Split into two"], key=f"split_{i}")
+
+            if split_decision == "Split into two" and cert.get("alternatives", {}).get("name"):
+                alt_names = cert["alternatives"]["name"]
+                for j, name in enumerate(alt_names):
+                    new_cert = cert.copy()
+                    new_cert["Name"] = name
+                    final_cert_rows.append({
+                        "approved": st.checkbox(f"✅ Approve certificate for: {name}", value=True, key=f"approve_{i}_{j}"),
+                        "Name": st.text_input("Name", value=name, key=f"name_{i}_{j}"),
+                        "Title": st.text_input("Title", value=cert["Title"], key=f"title_{i}_{j}"),
+                        "Organization": st.text_input("Organization", value=cert["Organization"], key=f"org_{i}_{j}"),
+                        "Certificate_Text": st.text_area("📜 Commendation", value=cert["Certificate_Text"], height=100, key=f"text_{i}_{j}"),
+                        "Formatted_Date": cert["Formatted_Date"],
+                        "Tone_Category": cert["Tone_Category"]
+                    })
+                continue  # Skip original
+
+        # Alternatives for uncertain fields
+        def choose_value(label, current_value, options, key):
+            if not options or current_value in options:
+                return st.text_input(label, value=current_value, key=key)
+            return st.radio(label, options, index=0, key=key)
+
+        alt = cert.get("alternatives", {})
+        name = choose_value("Name", cert["Name"], alt.get("name", []), key=f"name_{i}")
+        title = choose_value("Title", cert["Title"], alt.get("title", []), key=f"title_{i}")
+        org = choose_value("Organization", cert["Organization"], alt.get("organization", []), key=f"org_{i}")
+        text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
+        approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
+
+        final_cert_rows.append({
+            "approved": approved,
+            "Name": name,
+            "Title": title,
+            "Organization": org,
+            "Certificate_Text": text,
+            "Formatted_Date": cert["Formatted_Date"],
+            "Tone_Category": cert["Tone_Category"]
+        })
+
 
 # ─── WORD CERTIFICATE GENERATION ───────────────────────
+approved_rows = [row for row in final_cert_rows if row.get("approved")]
+if not approved_rows:
+    st.error("No certificates approved.")
+    st.stop()
+
 def generate_word_certificates(entries, template_path="template.docx"):
     doc = Document()
 
@@ -263,7 +327,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
-        doc = generate_word_certificates(cert_rows)
+        doc = generate_word_certificates(approved_rows)
         temp_word = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
         doc.save(temp_word.name)
         temp_word.seek(0)
