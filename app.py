@@ -221,9 +221,21 @@ def generate_word_certificates(entries, template_path="template.docx"):
 
                         # Style each element
                         if key == "Name":
-                            new_run.font.bold = True
-                            new_run.font.size = Pt(64)  # Doubled from ~32
-                            new_para.paragraph_format.space_after = Pt(2)  # Tight spacing under name
+    name_length = len(str(value))
+    if name_length <= 12:
+        size = 64
+    elif name_length <= 18:
+        size = 52
+    elif name_length <= 24:
+        size = 44
+    elif name_length <= 30:
+        size = 36
+    else:
+        size = 28  # fallback for extra-long names
+    new_run.font.bold = True
+    new_run.font.size = Pt(size)
+    new_para.paragraph_format.space_after = Pt(2)
+
                         elif key == "Title":
                             new_run.font.bold = True
                             new_run.font.size = Pt(18)
