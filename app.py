@@ -57,14 +57,20 @@ def determine_title_font_size(title):
     if length <= 36: return 20
     return 18
 
-def choose_title_or_org(title: str, org: str) -> str:
-    """Return whichever of title or organization should be displayed."""
-    if not title.strip():
-        return org
-    normalized = title.strip().lower()
-    if normalized in {"certificate of recognition", "certificate of appreciation"}:
-        return org
-    return title
+def format_display_title(title: str, org: str) -> str:
+    """Return a human-friendly combination of title and organization."""
+    title_clean = title.strip()
+    org_clean = org.strip()
+
+    generic_titles = {"organization", "committee", "organisation"}
+
+    if not title_clean or title_clean.lower() in generic_titles or title_clean.lower() == org_clean.lower():
+        return org_clean
+
+    if title_clean and org_clean:
+        return f"{title_clean} of {org_clean}"
+
+    return title_clean or org_clean
 
 def enhanced_commendation(name, title, org):
     base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
@@ -292,7 +298,7 @@ st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
-    display_title = choose_title_or_org(cert['Title'], cert['Organization'])
+    display_title = format_display_title(cert['Title'], cert['Organization'])
     with st.expander(f"📜 {cert['Name']} – {display_title}"):
 
         if cert.get("possible_split"):
@@ -338,7 +344,7 @@ for i, cert in enumerate(cert_rows, 1):
         st.markdown("#### 📄 Certificate Preview")
         lines = []
         lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
-        display_title = choose_title_or_org(title, org)
+        display_title = format_display_title(title, org)
         if display_title.strip():
             lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{display_title}</div>")
         lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
@@ -368,7 +374,7 @@ def generate_word_certificates(entries):
         p_name.runs[0].font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
-        display_title = choose_title_or_org(entry["Title"], entry["Organization"])
+        display_title = format_display_title(entry["Title"], entry["Organization"]) 
         if display_title.strip():
             p_title = doc.add_paragraph(display_title)
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
