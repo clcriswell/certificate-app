@@ -165,18 +165,28 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
-        p_spacer = doc.add_paragraph("\n" * 14)  # 14 line breaks = ~half page
-        p_spacer.runs[0].font.size = Pt(12)  # Small invisible font
+        # Force content to start halfway down
+        p_spacer = doc.add_paragraph("\n" * 14)
+        p_spacer.runs[0].font.size = Pt(12)
 
-
+        # NAME
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p_name.runs[0]
         run.bold = True
         run.font.name = "Times New Roman"
         run.font.size = Pt(determine_name_font_size(entry["Name"]))
-        p_name.paragraph_format.space_after = Pt(2)
+        p_name.paragraph_format.space_after = Pt(6)
 
+        # TITLE (size 28)
+        p_title = doc.add_paragraph(entry["Title"])
+        p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p_title.runs[0]
+        run.bold = True
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(28)
+
+        # ORGANIZATION (only if present)
         if entry["Organization"].strip():
             p_org = doc.add_paragraph(entry["Organization"])
             p_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -184,6 +194,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.name = "Times New Roman"
             run.font.size = Pt(16)
 
+        # COMMENDATION TEXT
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
@@ -191,27 +202,33 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.name = "Times New Roman"
         run.font.size = Pt(14)
 
-        for line in entry["Formatted_Date"].split("\n"):
+        # DATE (2 lines, no spacing between lines, size 12)
+        for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_date.paragraph_format.space_before = Pt(20)
+            if idx > 0:
+                p_date.paragraph_format.space_before = Pt(0)
             run = p_date.runs[0]
-            run.font.name = "Times New Roman"
-            run.font.size = Pt(10)
-
-        for line in [
-            "__________________________________________",
-            "Stan Ellis",
-            "Assemblyman, 32nd District"
-        ]:
-            p_sig = doc.add_paragraph(line)
-            p_sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            p_sig.paragraph_format.space_before = Pt(18)
-            run = p_sig.runs[0]
             run.font.name = "Times New Roman"
             run.font.size = Pt(12)
 
+        # SIGNATURE BLOCK (3 lines, all right-aligned, no spacing)
+        sig_line = doc.add_paragraph("_____________________________________")
+        sig_line.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        sig_line.paragraph_format.space_before = Pt(20)
+        sig_line.paragraph_format.space_after = Pt(0)
+        sig_line.runs[0].font.name = "Times New Roman"
+        sig_line.runs[0].font.size = Pt(12)
+
+        sig_name = doc.add_paragraph("Stan Ellis / Assemblyman, 32nd District")
+        sig_name.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        sig_name.paragraph_format.space_before = Pt(0)
+        sig_name.paragraph_format.space_after = Pt(0)
+        sig_name.runs[0].font.name = "Times New Roman"
+        sig_name.runs[0].font.size = Pt(14)
+
     return doc
+
 
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
 if st.button("📄 Generate Word Certificates"):
