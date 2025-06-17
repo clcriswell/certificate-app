@@ -165,11 +165,11 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
-        # Force content to start halfway down
+        # Vertical spacer (~half page)
         p_spacer = doc.add_paragraph("\n" * 14)
         p_spacer.runs[0].font.size = Pt(12)
 
-        # NAME
+        # NAME (big, bold, centered)
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p_name.runs[0]
@@ -178,23 +178,16 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
-        # TITLE (size 28)
-        p_title = doc.add_paragraph(entry["Title"])
-        p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p_title.runs[0]
-        run.bold = True
-        run.font.name = "Times New Roman"
-        run.font.size = Pt(28)
-
-        # ORGANIZATION (only if present)
-        if entry["Organization"].strip():
-            p_org = doc.add_paragraph(entry["Organization"])
-            p_org.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p_org.runs[0]
+        # TITLE (28 pt bold, centered)
+        if entry["Title"].strip():
+            p_title = doc.add_paragraph(entry["Title"])
+            p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p_title.runs[0]
+            run.bold = True
             run.font.name = "Times New Roman"
-            run.font.size = Pt(16)
+            run.font.size = Pt(28)
 
-        # COMMENDATION TEXT
+        # COMMENDATION
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
@@ -202,32 +195,39 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.name = "Times New Roman"
         run.font.size = Pt(14)
 
-        # DATE (2 lines, no spacing between lines, size 12)
-        for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
+        # DATE (2 lines, no space between lines, 12 pt)
+        date_lines = entry["Formatted_Date"].split("\n")
+        for idx, line in enumerate(date_lines):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
             if idx > 0:
                 p_date.paragraph_format.space_before = Pt(0)
+            else:
+                p_date.paragraph_format.space_before = Pt(20)
+            p_date.paragraph_format.space_after = Pt(0)
             run = p_date.runs[0]
             run.font.name = "Times New Roman"
             run.font.size = Pt(12)
 
-        # SIGNATURE BLOCK (3 lines, all right-aligned, no spacing)
-        sig_line = doc.add_paragraph("_____________________________________")
-        sig_line.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        sig_line.paragraph_format.space_before = Pt(20)
-        sig_line.paragraph_format.space_after = Pt(0)
-        sig_line.runs[0].font.name = "Times New Roman"
-        sig_line.runs[0].font.size = Pt(12)
+        # SIGNATURE (3 lines, no spacing between them)
+        lines = [
+            "_____________________________________",
+            "Stan Ellis",
+            "Assemblyman, 32nd District"
+        ]
+        sizes = [12, 14, 14]
 
-        sig_name = doc.add_paragraph("Stan Ellis / Assemblyman, 32nd District")
-        sig_name.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        sig_name.paragraph_format.space_before = Pt(0)
-        sig_name.paragraph_format.space_after = Pt(0)
-        sig_name.runs[0].font.name = "Times New Roman"
-        sig_name.runs[0].font.size = Pt(14)
+        for i, text in enumerate(lines):
+            p_sig = doc.add_paragraph(text)
+            p_sig.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            p_sig.paragraph_format.space_before = Pt(0)
+            p_sig.paragraph_format.space_after = Pt(0)
+            run = p_sig.runs[0]
+            run.font.name = "Times New Roman"
+            run.font.size = Pt(sizes[i])
 
     return doc
+
 
 
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
