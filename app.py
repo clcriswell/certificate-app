@@ -262,4 +262,3 @@ if st.button("📄 Generate Word Certificates"):
             doc.save(tmp.name)
             tmp.seek(0)
             st.download_button("⬇️ Download Word Certificates", tmp.read(), "Certificates.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-
