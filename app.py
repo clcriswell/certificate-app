@@ -4,6 +4,10 @@ from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
+from docx import Document
+from docx.shared import Pt
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+
 
 # ─── CONFIG ─────────────────────────────────────────────
 client = openai.OpenAI()
