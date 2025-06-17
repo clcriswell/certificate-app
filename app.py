@@ -8,6 +8,7 @@ import openai
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+import random
 
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
@@ -80,7 +81,27 @@ def log_certificates(original_data, final_data, event_text, source="pasted"):
             }
             f.write(json.dumps(entry) + "\n")
 
-# ─── UI + INPUT ─────────────────────────────────────────
+def load_example_certificates(n=3):
+    log_dir = Path("logs")
+    if not log_dir.exists():
+        return []
+
+    entries = []
+    for log_file in sorted(log_dir.glob("cert_logs_*.jsonl"), reverse=True):
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    cert = json.loads(line.strip())
+                    if cert.get("approved"):
+                        entries.append(cert)
+                except json.JSONDecodeError:
+                    continue
+        if len(entries) >= n:
+            break
+
+    return random.sample(entries, min(len(entries), n))
+
+# ─── UI Setup ──────────────────────────────────────────────
 st.set_page_config(layout="centered")
 st.title("📑 Certificate Review Assistant")
 
@@ -97,10 +118,29 @@ if pdf_file:
         tmp_path = tmp.name
     pdf_text = extract_text(tmp_path)
     os.remove(tmp_path)
+    source_type = "pdf"
 else:
     pdf_text = text_input
+    source_type = "pasted"
 
 event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
+
+# Load few-shot examples
+examples = load_example_certificates(3)
+few_shot_examples = ""
+for idx, ex in enumerate(examples, 1):
+    few_shot_examples += f"""
+Example {idx}:
+Name: {ex['final_name']}
+Title: {ex['final_title']}
+Organization: {ex['final_organization']}
+Commendation:
+{ex['final_commendation']}
+"""
+
+few_shot_block = ""
+if few_shot_examples.strip():
+    few_shot_block = f"\nHere are a few example certificates to follow for style and tone:\n{few_shot_examples}"
 
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
@@ -118,10 +158,13 @@ Each certificate must include:
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
+{few_shot_block}
+
 The event date is: {event_date}
 
 Return ONLY valid JSON.
 """
+
 
 cert_rows = []
 
@@ -166,7 +209,6 @@ except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text(str(e))
     st.stop()
-
 
 # ─── REVIEW + PREVIEW UI ─────────────────────────────────────
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
