@@ -6,10 +6,7 @@ from pdfminer.high_level import extract_text
 import openai
 from docx import Document
 from docx.shared import Pt
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-
-
 
 # ─── CONFIG ─────────────────────────────────────────────
 client = openai.OpenAI()
@@ -75,6 +72,22 @@ def extract_event_date(text):
         return match.group(0)
     return "unknown"
 
+def determine_font_size(field, value):
+    base_size = {
+        "Name": 32,
+        "Certificate_Text": 16,
+        "Formatted_Date": 14,
+        "Title": 18,
+        "Organization": 14
+    }.get(field, 12)
+
+    if field == "Name":
+        return max(20, base_size - int(len(value) / 2))
+    elif field == "Certificate_Text":
+        return max(12, base_size - int(len(value) / 10))
+    else:
+        return base_size
+
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
 st.title("📑 Certificate CSV Generator (Multi-Entry)")
@@ -84,7 +97,6 @@ pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
     st.stop()
 
-# ─── TEXT EXTRACTION ───────────────────────────────────
 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
     tmp.write(pdf_file.read())
     tmp_path = tmp.name
@@ -93,7 +105,6 @@ os.remove(tmp_path)
 
 event_date = extract_event_date(pdf_text)
 
-# ─── GPT PROMPT ─────────────────────────────────────────
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
 
@@ -107,20 +118,11 @@ For each certificate, return:
 - commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
 
 Respond only with JSON in this format:
-[
-  {{
-    "name": "Jane Smith",
-    "title": "Volunteer of the Year",
-    "organization": "Good Neighbors Foundation",
-    "date_raw": "June 12, 2025",
-    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."
-  }}
-]
+[{{"name": "Jane Smith","title": "Volunteer of the Year","organization": "Good Neighbors Foundation","date_raw": "June 12, 2025","commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."}}]
 
 DO NOT include markdown (like ```), explanations, or extra text.
 """
 
-# ─── GPT CALL ───────────────────────────────────────────
 cert_rows = []
 
 try:
@@ -136,7 +138,6 @@ try:
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
 
-    # ⬇️ Collapsible debug output
     with st.expander("🧾 Show Raw GPT Output (Debug)", expanded=False):
         st.code(content, language="json")
 
@@ -156,14 +157,6 @@ except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text("No content received. Exception details:")
     st.text(str(e))
-    cert_rows.append({
-        "Name": "UNKNOWN",
-        "Title": "UNKNOWN",
-        "Organization": "UNKNOWN",
-        "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
-        "Formatted_Date": format_certificate_date(event_date),
-        "Tone_Category": "📝 Recognition"
-    })
 
 # ─── PREVIEW ────────────────────────────────────────────
 st.subheader("👁 Preview Extracted Certificates")
@@ -186,32 +179,9 @@ if st.button("📥 Download CSV for Mail Merge"):
         file_name="Certificates_MailMerge.csv",
         mime="text/csv"
     )
-    from docx import Document
-from docx.shared import Pt
-from docx.oxml.ns import qn
 
 # ─── Generate Certificates in Word ─────────────────────────────────────
-def determine_font_size(field, value):
-    base_size = {
-        "Name": 32,
-        "Certificate_Text": 16,
-        "Formatted_Date": 14,
-        "Title": 18,
-        "Organization": 14
-    }.get(field, 12)
-
-    if field == "Name":
-        return max(20, base_size - int(len(value) / 2))  # Shrinks long names
-    elif field == "Certificate_Text":
-        return max(12, base_size - int(len(value) / 10))  # Shrinks long commendations
-    else:
-        return base_size
-
 def generate_word_certificates(entries, template_path="template.docx"):
-    from docx import Document
-    from docx.shared import Pt
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-
     merged_doc = Document()
 
     for i, row in enumerate(entries):
@@ -224,26 +194,22 @@ def generate_word_certificates(entries, template_path="template.docx"):
             for run in para.runs:
                 text = run.text
 
-               # Replace {{Signature_Block}} with 3 actual paragraphs
-if "{{Signature_Block}}" in text:
-    line1 = merged_doc.add_paragraph("__________________________________________")
-    line1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    line1.runs[0].font.name = "Times New Roman"
-    line1.runs[0].font.size = Pt(12)
+                if "{{Signature_Block}}" in text:
+                    line1 = merged_doc.add_paragraph("__________________________________________")
+                    line1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    line1.runs[0].font.name = "Times New Roman"
+                    line1.runs[0].font.size = Pt(12)
 
-    line2 = merged_doc.add_paragraph("Stan Ellis")
-    line2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    line2.runs[0].font.name = "Times New Roman"
-    line2.runs[0].font.size = Pt(12)
+                    line2 = merged_doc.add_paragraph("Stan Ellis")
+                    line2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    line2.runs[0].font.name = "Times New Roman"
+                    line2.runs[0].font.size = Pt(12)
 
-    line3 = merged_doc.add_paragraph("Assemblyman, 32nd District")
-    line3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    line3.runs[0].font.name = "Times New Roman"
-    line3.runs[0].font.size = Pt(12)
-
-    # Skip processing the rest of this paragraph
-    break
-
+                    line3 = merged_doc.add_paragraph("Assemblyman, 32nd District")
+                    line3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    line3.runs[0].font.name = "Times New Roman"
+                    line3.runs[0].font.size = Pt(12)
+                    break
 
                 for key, value in row.items():
                     placeholder = f"{{{{{key}}}}}"
@@ -254,7 +220,7 @@ if "{{Signature_Block}}" in text:
 
                         if key == "Name":
                             new_run.font.bold = True
-                            new_run.font.size = Pt(determine_font_size("Name", value))  # e.g., 26–32
+                            new_run.font.size = Pt(determine_font_size("Name", value))
                         elif key == "Title":
                             new_run.font.bold = True
                             new_run.font.size = Pt(18)
@@ -262,7 +228,6 @@ if "{{Signature_Block}}" in text:
                             new_run.font.size = Pt(14)
                         else:
                             new_run.font.size = Pt(12)
-
                         break
                 else:
                     new_run = new_para.add_run(text)
@@ -272,7 +237,6 @@ if "{{Signature_Block}}" in text:
                     new_run.italic = run.italic
                     new_run.underline = run.underline
 
-            # Everything but signature is center-aligned
             if not is_signature:
                 new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
@@ -281,8 +245,6 @@ if "{{Signature_Block}}" in text:
 
     return merged_doc
 
-
-# Button to generate and download the Word file
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
         doc = generate_word_certificates(cert_rows)
