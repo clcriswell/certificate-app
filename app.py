@@ -165,7 +165,9 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
-        doc.add_paragraph().paragraph_format.space_before = Pt(200)  # start halfway down
+        p_spacer = doc.add_paragraph("\n" * 14)  # 14 line breaks = ~half page
+        p_spacer.runs[0].font.size = Pt(12)  # Small invisible font
+
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
