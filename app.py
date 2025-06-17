@@ -191,6 +191,21 @@ from docx.shared import Pt
 from docx.oxml.ns import qn
 
 # ─── Generate Certificates in Word ─────────────────────────────────────
+def determine_font_size(field, value):
+    base_size = {
+        "Name": 32,
+        "Certificate_Text": 16,
+        "Formatted_Date": 14,
+        "Title": 18,
+        "Organization": 14
+    }.get(field, 12)
+
+    if field == "Name":
+        return max(20, base_size - int(len(value) / 2))  # Shrinks long names
+    elif field == "Certificate_Text":
+        return max(12, base_size - int(len(value) / 10))  # Shrinks long commendations
+    else:
+        return base_size
 
 def generate_word_certificates(entries, template_path="template.docx"):
     from docx import Document
