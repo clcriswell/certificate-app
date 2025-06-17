@@ -6,7 +6,7 @@ from pdfminer.high_level import extract_text
 import openai
 
 # ─── CONFIG ─────────────────────────────────────────────
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = openai.OpenAI()  # uses st.secrets["OPENAI_API_KEY"] automatically
 OPENAI_MODEL = "gpt-4o"
 
 # ─── HELPERS ────────────────────────────────────────────
@@ -118,26 +118,21 @@ DO NOT include markdown (like ```), explanations, or extra text.
 cert_rows = []
 
 try:
-client = openai.OpenAI()  # uses default key from st.secrets
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": pdf_text}
+        ],
+        temperature=0
+    )
 
-response = client.chat.completions.create(
-    model=OPENAI_MODEL,
-    messages=[
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": pdf_text}
-    ],
-    temperature=0
-)
-content = response.choices[0].message.content
+    content = response.choices[0].message.content
 
-
-    # 🧾 Show GPT output for debugging
     st.subheader("🧾 Raw GPT Output (Debug)")
     st.code(content[:2000], language="json")
 
-    # Clean up known wrappers (markdown fences)
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
-
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
@@ -152,14 +147,8 @@ content = response.choices[0].message.content
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
-    if 'response' in locals():
-        st.code(response, language="json")
-    elif 'content' in locals():
-        st.code(content)
-    else:
-        st.text("No content received. Exception details:")
-        st.text(str(e))
-
+    st.text("No content received. Exception details:")
+    st.text(str(e))
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
