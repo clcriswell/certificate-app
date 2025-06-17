@@ -119,34 +119,12 @@ def load_example_certificates(n=3):
 
     return random.sample(entries, min(len(entries), n))
 
-st.set_page_config(layout="centered")
-st.title("📁 Certificate Review Assistant")
+def extract_certificates(event_text, event_date):
+    """Call the LLM to parse certificate information from the event text."""
+    cert_rows = []
+    parsed_entries = []
 
-pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
-text_input = st.text_area("Or paste certificate request text here", height=300)
-
-if not pdf_file and not text_input.strip():
-    st.warning("Please upload a PDF or paste request text.")
-    st.stop()
-
-if pdf_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(pdf_file.read())
-        tmp_path = tmp.name
-    pdf_text = extract_text(tmp_path)
-    os.remove(tmp_path)
-    source_type = "pdf"
-else:
-    pdf_text = text_input
-    source_type = "pasted"
-
-event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
-examples = load_example_certificates(3)
-few_shot_examples = ""
-for idx, ex in enumerate(examples, 1):
-    few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
-
-SYSTEM_PROMPT = f"""
+    SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
@@ -158,7 +136,7 @@ Each certificate must include:
 - title
 - organization (if applicable)
 - date_raw (or fallback to event date)
-- commendation: 2–3 sentence message starting with “On behalf of the California State Legislature...” that honors their work and ends with well wishes
+- commendation: 2–3 sentence message starting with "On behalf of the California State Legislature..." that honors their work and ends with well wishes
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
@@ -167,14 +145,11 @@ The event date is: {event_date}
 Return ONLY valid JSON.
 """
 
-cert_rows = []
-
-try:
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": pdf_text}
+            {"role": "user", "content": event_text}
         ],
         temperature=0
     )
@@ -206,10 +181,93 @@ try:
             "alternatives": parsed.get("alternatives", {})
         })
 
-except Exception as e:
-    st.error("⚠️ GPT failed to extract entries.")
-    st.text(str(e))
+    return parsed_entries, cert_rows
+
+def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
+    """Use reviewer comments to refine an existing certificate via the LLM."""
+    instructions = []
+    if global_comment.strip():
+        instructions.append(f"Global comment: {global_comment.strip()}")
+    if reviewer_comment.strip():
+        instructions.append(f"Reviewer comment: {reviewer_comment.strip()}")
+
+    if not instructions:
+        return cert
+
+    prompt = "\n".join(instructions)
+    system = (
+        "You update certificate details based on reviewer comments. "
+        "Return ONLY valid JSON with keys name, title, organization, date_raw, commendation."
+    )
+
+    user_msg = (
+        f"Current certificate:\n"
+        f"Name: {cert['Name']}\n"
+        f"Title: {cert['Title']}\n"
+        f"Organization: {cert['Organization']}\n"
+        f"Formatted_Date: {cert['Formatted_Date']}\n"
+        f"Commendation: {cert['Certificate_Text']}\n\n"
+        f"{prompt}"
+    )
+
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+        temperature=0
+    )
+
+    content = response.choices[0].message.content
+    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    updated = json.loads(cleaned)
+
+    cert["Name"] = updated.get("name", cert["Name"])
+    cert["Title"] = updated.get("title", cert["Title"])
+    cert["Organization"] = updated.get("organization", cert["Organization"])
+    cert["Certificate_Text"] = updated.get("commendation", cert["Certificate_Text"])
+    if updated.get("date_raw"):
+        cert["Formatted_Date"] = format_certificate_date(updated["date_raw"])
+    return cert
+
+st.set_page_config(layout="centered")
+st.title("📁 Certificate Review Assistant")
+
+pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
+text_input = st.text_area("Or paste certificate request text here", height=300)
+
+if not pdf_file and not text_input.strip():
+    st.warning("Please upload a PDF or paste request text.")
     st.stop()
+
+if pdf_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(pdf_file.read())
+        tmp_path = tmp.name
+    pdf_text = extract_text(tmp_path)
+    os.remove(tmp_path)
+    source_type = "pdf"
+else:
+    pdf_text = text_input
+    source_type = "pasted"
+
+event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
+examples = load_example_certificates(3)
+few_shot_examples = ""
+for idx, ex in enumerate(examples, 1):
+    few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
+
+if "parsed_entries" not in st.session_state:
+    try:
+        parsed_entries, cert_rows = extract_certificates(pdf_text, event_date)
+    except Exception as e:
+        st.error("⚠️ GPT failed to extract entries.")
+        st.text(str(e))
+        st.stop()
+
+    st.session_state.parsed_entries = parsed_entries
+    st.session_state.cert_rows = cert_rows
+else:
+    parsed_entries = st.session_state.parsed_entries
+    cert_rows = st.session_state.cert_rows
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
@@ -217,6 +275,18 @@ global_comment = st.text_area(
     placeholder="e.g., 'Make all commendations sound more formal.'",
     key="global_comment"
 )
+
+if st.button("🔄 Regenerate All Certificates", key="regen_all"):
+    new_rows = []
+    for cert in cert_rows:
+        try:
+            new_rows.append(regenerate_certificate(cert, global_comment, ""))
+        except Exception as e:
+            st.error(str(e))
+            new_rows.append(cert)
+    st.session_state.cert_rows = new_rows
+    cert_rows = new_rows
+    st.success("Certificates updated using global comment.")
 
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
@@ -248,6 +318,14 @@ for i, cert in enumerate(cert_rows, 1):
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
+
+        if st.button("🔄 Regenerate with Comment", key=f"regen_{i}"):
+            try:
+                regenerate_certificate(cert, global_comment, indiv_comment)
+                st.session_state.cert_rows[i-1] = cert
+                st.success("Certificate regenerated.")
+            except Exception as e:
+                st.error(str(e))
 
         if st.button("📄 Update This Certificate", key=f"update_{i}"):
             cert["Name"] = name
