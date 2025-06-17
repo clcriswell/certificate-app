@@ -13,7 +13,6 @@ import random
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
-# ─── HELPERS ────────────────────────────────────────────
 def format_certificate_date(raw_date_str):
     try:
         dt = datetime.strptime(raw_date_str, "%B %d, %Y")
@@ -52,32 +51,10 @@ def determine_title_font_size(title):
     return 18
 
 def enhanced_commendation(name, title, org):
-    if title and not org:
-        base = f"On behalf of the California State Legislature, congratulations on being recognized as {title}."
-    elif org and not title:
-        base = f"On behalf of the California State Legislature, congratulations on your recognition with {org}."
-    elif title and org:
-        base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
-    else:
-        base = f"On behalf of the California State Legislature, congratulations on your well-deserved recognition."
+    base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
     middle = "This honor reflects your dedication and the meaningful contributions you’ve made to our community."
     close = "I wish you all the best in your future endeavors."
     return f"{base} {middle} {close}"
-
-def refine_commendation(name, title, org, comment):
-    prompt = f"Rewrite the following commendation using the comment as guidance.\n\nName: {name}\nTitle: {title}\nOrganization: {org}\nComment: {comment.strip()}\n\nCommendation:"
-    try:
-        response = client.chat.completions.create(
-            model=OPENAI_MODEL,
-            messages=[
-                {"role": "system", "content": "You refine official commendations based on input from a reviewer."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.4
-        )
-        return response.choices[0].message.content.strip()
-    except Exception:
-        return None
 
 def log_certificates(original_data, final_data, event_text, source="pasted", global_comment=""):
     log_dir = Path("logs")
@@ -105,6 +82,184 @@ def log_certificates(original_data, final_data, event_text, source="pasted", glo
                 "global_comment": global_comment
             }
             f.write(json.dumps(entry) + "\n")
+
+def load_example_certificates(n=3):
+    log_dir = Path("logs")
+    if not log_dir.exists():
+        return []
+
+    entries = []
+    for log_file in sorted(log_dir.glob("cert_logs_*.jsonl"), reverse=True):
+        with log_file.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    cert = json.loads(line.strip())
+                    if cert.get("approved"):
+                        entries.append(cert)
+                except json.JSONDecodeError:
+                    continue
+        if len(entries) >= n:
+            break
+
+    return random.sample(entries, min(len(entries), n))
+
+st.set_page_config(layout="centered")
+st.title("📁 Certificate Review Assistant")
+
+pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
+text_input = st.text_area("Or paste certificate request text here", height=300)
+
+if not pdf_file and not text_input.strip():
+    st.warning("Please upload a PDF or paste request text.")
+    st.stop()
+
+if pdf_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(pdf_file.read())
+        tmp_path = tmp.name
+    pdf_text = extract_text(tmp_path)
+    os.remove(tmp_path)
+    source_type = "pdf"
+else:
+    pdf_text = text_input
+    source_type = "pasted"
+
+event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
+examples = load_example_certificates(3)
+few_shot_examples = ""
+for idx, ex in enumerate(examples, 1):
+    few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
+
+SYSTEM_PROMPT = f"""
+You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
+
+- Carefully interpret the context of the event and the nature of each person's recognition
+- If more than one name or organization appears in a single entry, set \"possible_split\": true
+- If you're uncertain about name, title, or org, return multiple options inside \"alternatives\"
+
+Each certificate must include:
+- name
+- title
+- organization (if applicable)
+- date_raw (or fallback to event date)
+- commendation: 2–3 sentence message starting with “On behalf of the California State Legislature...” that honors their work and ends with well wishes
+- optional: possible_split (true/false)
+- optional: alternatives (dictionary)
+
+The event date is: {event_date}
+
+Return ONLY valid JSON.
+"""
+
+cert_rows = []
+
+try:
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": pdf_text}
+        ],
+        temperature=0
+    )
+
+    content = response.choices[0].message.content
+    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    parsed_entries = json.loads(cleaned)
+
+    for parsed in parsed_entries:
+        name = parsed.get("name") or "Recipient"
+        title = parsed.get("title") or ""
+        org = parsed.get("organization") or ""
+        commendation = parsed.get("commendation") or ""
+
+        if title.strip().lower() == "certificate of recognition":
+            title = ""
+
+        if not commendation.strip():
+            commendation = enhanced_commendation(name, title, org)
+
+        cert_rows.append({
+            "Name": name,
+            "Title": title,
+            "Organization": org,
+            "Certificate_Text": commendation,
+            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+            "Tone_Category": "📝",
+            "possible_split": parsed.get("possible_split", False),
+            "alternatives": parsed.get("alternatives", {})
+        })
+
+except Exception as e:
+    st.error("⚠️ GPT failed to extract entries.")
+    st.text(str(e))
+    st.stop()
+
+st.subheader("💬 Global Comments")
+global_comment = st.text_area(
+    "Optional: Enter general comments, tone guidance, or feedback that applies to all certificates.",
+    placeholder="e.g., 'Make all commendations sound more formal.'",
+    key="global_comment"
+)
+
+st.subheader("👁 Review, Edit, and Approve Each Certificate")
+final_cert_rows = []
+
+for i, cert in enumerate(cert_rows, 1):
+    with st.expander(f"📜 {cert['Name']} – {cert['Title']}"):
+
+        if cert.get("possible_split"):
+            st.warning("⚠️ This entry may include multiple recipients.")
+            decision = st.radio("Would you like to split this?", ["Keep as one", "Split into two"], key=f"split_{i}")
+            if decision == "Split into two" and cert.get("alternatives", {}).get("name"):
+                for alt_name in cert["alternatives"]["name"]:
+                    name = st.text_input("Name", value=alt_name, key=f"name_{i}_{alt_name}")
+                    title = st.text_input("Title", value=cert["Title"], key=f"title_{i}_{alt_name}")
+                    org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}_{alt_name}")
+                    text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}_{alt_name}")
+                    approved = st.checkbox("✅ Approve", value=True, key=f"approve_{i}_{alt_name}")
+                    final_cert_rows.append({
+                        "approved": approved, "Name": name, "Title": title,
+                        "Organization": org, "Certificate_Text": text,
+                        "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
+                    })
+                continue
+
+        name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
+        title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
+        org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
+        text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
+        approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
+        indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
+
+        if st.button("📄 Update This Certificate", key=f"update_{i}"):
+            cert["Name"] = name
+            cert["Title"] = title
+            cert["Organization"] = org
+            cert["Certificate_Text"] = text
+            cert["approved"] = approved
+            cert["reviewer_comment"] = indiv_comment
+            st.success("Certificate updated.")
+
+        final_cert_rows.append(cert)
+
+        st.markdown("---")
+        st.markdown("#### 📄 Certificate Preview")
+        lines = []
+        lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
+        if title.strip():
+            lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{title}</div>")
+        if org.strip():
+            lines.append(f"<div style='text-align:center; font-size:18px;'>{org}</div>")
+        lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
+        for line in cert["Formatted_Date"].split("\n"):
+            lines.append(f"<div style='text-align:center; font-size:12px; margin-top:20px;'>{line}</div>")
+        lines.append("<br>" * 5)
+        lines.append(f"<div style='text-align:right; font-size:12px;'>_____________________________________</div>")
+        lines.append(f"<div style='text-align:right; font-size:14px;'>Stan Ellis</div>")
+        lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
+        st.markdown("<br>".join(lines), unsafe_allow_html=True)
+
 
 def generate_word_certificates(entries):
     doc = Document()
@@ -163,99 +318,20 @@ def generate_word_certificates(entries):
             sig.runs[0].font.size = Pt(size)
     return doc
 
-# ─── APP START ───────────────────────────────────────────
-st.set_page_config(layout="centered")
-st.title("📑 Certificate Review Assistant")
-
-pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
-text_input = st.text_area("Or paste certificate request text here", height=300)
-
-if not pdf_file and not text_input.strip():
-    st.warning("Please upload a PDF or paste request text.")
-    st.stop()
-
-if pdf_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(pdf_file.read())
-        tmp_path = tmp.name
-    pdf_text = extract_text(tmp_path)
-    os.remove(tmp_path)
-else:
-    pdf_text = text_input
-
-SYSTEM_PROMPT = "Extract each individual certificate entry from the text and return structured JSON with name, title, organization, and commendation text."
-
-try:
-    response = client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": pdf_text}
-        ]
-    )
-    content = response.choices[0].message.content.strip()
-    cert_rows = json.loads(content.removeprefix("```json").removesuffix("```"))
-    for cert in cert_rows:
-        cert.setdefault("Certificate_Text", enhanced_commendation(cert.get("name", ""), cert.get("title", ""), cert.get("organization", "")))
-        cert.setdefault("Formatted_Date", format_certificate_date(datetime.today().strftime("%B %d, %Y")))
-except Exception as e:
-    st.error("⚠️ Failed to process certificate entries.")
-    st.stop()
-
-# ─── GLOBAL COMMENT ──────────────────────────────────────
-st.subheader("💬 Global Comments")
-global_comment = st.text_area("Optional: Enter tone/style guidance to apply to all certificates:", key="global_comment")
-refine_all = st.button("✨ Refine All Commendations with Global Comment")
-if refine_all and global_comment.strip():
-    for cert in cert_rows:
-        updated = refine_commendation(cert["name"], cert["title"], cert["organization"], global_comment)
-        if updated:
-            cert["Certificate_Text"] = updated
-    st.success("All commendations updated.")
-
-# ─── REVIEW & APPROVE ────────────────────────────────────
-st.subheader("👁 Review, Edit, and Approve Each Certificate")
-final_cert_rows = []
-hide_notes = st.checkbox("🔒 Hide reviewer notes from previews", value=True)
-
-for i, cert in enumerate(cert_rows):
-    with st.expander(f"📝 {cert['name']} – {cert['title']}"):
-        name = st.text_input("Name", value=cert["name"], key=f"name_{i}")
-        title = st.text_input("Title", value=cert["title"], key=f"title_{i}")
-        org = st.text_input("Organization", value=cert["organization"], key=f"org_{i}")
-        text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
-        approved = st.checkbox("✅ Approve", value=True, key=f"approve_{i}")
-        comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Tone adjustment or rewrite guidance", key=f"comment_{i}")
-
-        if st.button("✨ Refine This Certificate", key=f"refine_{i}") and comment.strip():
-    new_text = refine_commendation(name, title, org, comment)
-    if new_text:
-        cert["Certificate_Text"] = new_text
-        if f"text_{i}" in st.session_state:
-            st.session_state[f"text_{i}_refined"] = new_text
-        st.success("Commendation refined.")
-
-    cert.update({"Certificate_Text": st.session_state.get(f"text_{i}_refined", text),
-            "Formatted_Date": cert["Formatted_Date"],
-            "approved": approved,
-            "reviewer_comment": comment
-        })
-        final_cert_rows.append(cert)
-
-        st.markdown("#### 📄 Certificate Preview")
-        preview_text = cert["Certificate_Text"].split("Note: ")[0] if hide_notes else cert["Certificate_Text"]
-        st.markdown(f"<div style='text-align:center; font-size:16px'>{preview_text.replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
-
-# ─── FINAL OUTPUT ───────────────────────────────────────
 if st.button("📄 Generate Word Certificates"):
-    approved_entries = [c for c in final_cert_rows if c.get("approved")]
+    approved_entries = [c for c in final_cert_rows if c["approved"]]
     if not approved_entries:
         st.error("No certificates were approved.")
     else:
-        log_certificates(cert_rows, approved_entries, pdf_text, global_comment=global_comment)
+        log_certificates(parsed_entries, approved_entries, pdf_text, source="pdf" if pdf_file else "pasted", global_comment=global_comment)
         with st.spinner("Generating Word document..."):
             doc = generate_word_certificates(approved_entries)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
             doc.save(tmp.name)
             tmp.seek(0)
-            st.download_button("⬇️ Download Word Certificates", tmp.read(), "Certificates.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            st.download_button(
+                label="⬇️ Download Word Certificates",
+                data=tmp.read(),
+                file_name="Certificates.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
