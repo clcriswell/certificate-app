@@ -123,11 +123,15 @@ try:
             commendation = enhanced_commendation(parsed["name"], parsed["title"], parsed["organization"])
 
         cert_rows.append({
-            **parsed,
-            "Certificate_Text": commendation,
-            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
-            "Tone_Category": "📝"  # Placeholder
-        })
+    "Name": parsed["name"],
+    "Title": parsed["title"],
+    "Organization": parsed["organization"],
+    "Certificate_Text": commendation,
+    "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+    "Tone_Category": "📝",
+    "possible_split": parsed.get("possible_split", False),
+    "alternatives": parsed.get("alternatives", {})
+})
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
