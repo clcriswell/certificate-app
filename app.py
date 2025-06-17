@@ -129,8 +129,9 @@ try:
 
     content = response.choices[0].message.content
 
-    st.subheader("🧾 Raw GPT Output (Debug)")
-    st.code(content[:2000], language="json")
+with st.expander("🧾 Show Raw GPT Output (Debug)", expanded=False):
+    st.code(content, language="json")
+
 
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
     parsed_entries = json.loads(cleaned)
