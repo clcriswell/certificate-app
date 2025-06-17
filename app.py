@@ -224,18 +224,25 @@ def generate_word_certificates(entries, template_path="template.docx"):
             for run in para.runs:
                 text = run.text
 
-                if "{{Signature_Block}}" in text:
-                    # Create extended signature block
-                    signature_block = (
-                        " " * 30 + "__________________________________________\n"
-                        " " * 65 + "Stan Ellis\n"
-                        " " * 55 + "Assemblyman, 32nd District"
-                    )
-                    text = text.replace("{{Signature_Block}}", signature_block)
-                    new_run = new_para.add_run(text)
-                    new_run.font.name = "Times New Roman"
-                    new_run.font.size = Pt(12)
-                    new_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+               # Replace {{Signature_Block}} with 3 actual paragraphs
+if "{{Signature_Block}}" in text:
+    line1 = merged_doc.add_paragraph("__________________________________________")
+    line1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    line1.runs[0].font.name = "Times New Roman"
+    line1.runs[0].font.size = Pt(12)
+
+    line2 = merged_doc.add_paragraph("Stan Ellis")
+    line2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    line2.runs[0].font.name = "Times New Roman"
+    line2.runs[0].font.size = Pt(12)
+
+    line3 = merged_doc.add_paragraph("Assemblyman, 32nd District")
+    line3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    line3.runs[0].font.name = "Times New Roman"
+    line3.runs[0].font.size = Pt(12)
+
+    continue  # Skip the rest of this run processing
+
                     continue
 
                 for key, value in row.items():
