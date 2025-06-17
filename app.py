@@ -1,15 +1,15 @@
 import streamlit as st
-import re, os, json, tempfile
+import re, os, json, tempfile, io
 from datetime import datetime
 import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
-from io import StringIO
 
 # ─── CONFIG ─────────────────────────────────────────────
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 OPENAI_MODEL = "gpt-4o"
 
+# ─── HELPERS ────────────────────────────────────────────
 def format_certificate_date(raw_date_str):
     try:
         dt = datetime.strptime(raw_date_str, "%B %d, %Y")
@@ -60,6 +60,15 @@ def categorize_tone(title):
     else:
         return "📝 Recognition"
 
+def extract_event_date(text):
+    match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}", text)
+    if match:
+        return match.group(0)
+    match = re.search(r"\d{1,2}/\d{1,2}/20\d{2}", text)
+    if match:
+        return match.group(0)
+    return "unknown"
+
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
 st.title("📑 Certificate CSV Generator (Multi-Entry)")
@@ -76,22 +85,36 @@ with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
 pdf_text = extract_text(tmp_path)
 os.remove(tmp_path)
 
-# ─── GPT EXTRACTION ─────────────────────────────────────
-st.info("⏳ Detecting multiple certificate entries using GPT...")
+event_date = extract_event_date(pdf_text)
 
-SYSTEM_PROMPT = """
+# ─── GPT PROMPT ─────────────────────────────────────────
+SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
 
-For each one, return:
+The event date for this request is: {event_date}
+
+For each certificate, return:
 - name
 - title (award or position)
 - organization
-- date_raw (the event date if provided, otherwise 'unknown')
+- date_raw (use the event date if no specific date is mentioned per recipient)
 - commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
 
-Return ONLY a valid JSON array of objects. No commentary, no markdown, no explanations.
+Respond only with JSON in this format:
+[
+  {{
+    "name": "Jane Smith",
+    "title": "Volunteer of the Year",
+    "organization": "Good Neighbors Foundation",
+    "date_raw": "June 12, 2025",
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."
+  }}
+]
+
+DO NOT include markdown (like ```), explanations, or extra text.
 """
 
+# ─── GPT CALL ───────────────────────────────────────────
 cert_rows = []
 
 try:
@@ -103,8 +126,17 @@ try:
         ],
         temperature=0
     )
-    content = response["choices"][0]["message"]["content"].strip().strip("```json").strip("```")
-    parsed_entries = json.loads(content)
+
+    content = response["choices"][0]["message"]["content"]
+
+    # 🧾 Show GPT output for debugging
+    st.subheader("🧾 Raw GPT Output (Debug)")
+    st.code(content[:2000], language="json")
+
+    # Clean up known wrappers (markdown fences)
+    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+
+    parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
         cert_rows.append({
@@ -112,18 +144,19 @@ try:
             "Title": parsed["title"],
             "Organization": parsed["organization"],
             "Certificate_Text": parsed["commendation"],
-            "Formatted_Date": format_certificate_date(parsed["date_raw"]),
+            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
             "Tone_Category": categorize_tone(parsed["title"])
         })
 
 except Exception as e:
-    st.error("⚠️ GPT failed to extract entries. Adding a fallback row.")
+    st.error("⚠️ GPT failed to extract entries. Here's what it returned:")
+    st.code(content if 'content' in locals() else "No content received.")
     cert_rows.append({
         "Name": "UNKNOWN",
         "Title": "UNKNOWN",
         "Organization": "UNKNOWN",
         "Certificate_Text": fallback_commendation("UNKNOWN", "UNKNOWN", "UNKNOWN"),
-        "Formatted_Date": "Dated ______",
+        "Formatted_Date": format_certificate_date(event_date),
         "Tone_Category": "📝 Recognition"
     })
 
@@ -138,8 +171,8 @@ for i, cert in enumerate(cert_rows, 1):
 # ─── EXPORT TO CSV ──────────────────────────────────────
 if st.button("📥 Download CSV for Mail Merge"):
     df = pd.DataFrame(cert_rows)
-    csv_buffer = StringIO()
-    df.to_csv(csv_buffer, index=False)
+    csv_buffer = io.BytesIO()
+    df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
     csv_data = csv_buffer.getvalue()
 
     st.download_button(
