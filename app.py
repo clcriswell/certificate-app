@@ -115,23 +115,27 @@ try:
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
-        if parsed["title"].strip().lower() == "certificate of recognition":
-            parsed["title"] = ""
+    if parsed.get("title", "").strip().lower() == "certificate of recognition":
+        parsed["title"] = ""
 
-        commendation = parsed.get("commendation", "").strip()
-        if not commendation:
-            commendation = enhanced_commendation(parsed["name"], parsed["title"], parsed["organization"])
+    commendation = parsed.get("commendation", "").strip()
+    if not commendation:
+        commendation = enhanced_commendation(
+            parsed.get("name", "Recipient"),
+            parsed.get("title", "Awardee"),
+            parsed.get("organization", "")
+        )
 
-        cert_rows.append({
-    "Name": parsed["name"],
-    "Title": parsed["title"],
-    "Organization": parsed.get("organization", ""),
-    "Certificate_Text": commendation,
-    "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
-    "Tone_Category": "📝",
-    "possible_split": parsed.get("possible_split", False),
-    "alternatives": parsed.get("alternatives", {})
-})
+    cert_rows.append({
+        "Name": parsed.get("name", "Recipient"),
+        "Title": parsed.get("title", ""),
+        "Organization": parsed.get("organization", ""),
+        "Certificate_Text": commendation,
+        "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+        "Tone_Category": categorize_tone(parsed.get("title", "")),
+        "possible_split": parsed.get("possible_split", False),
+        "alternatives": parsed.get("alternatives", {})
+    })
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
