@@ -12,6 +12,9 @@ from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_SECTION
+import pandas as pd
+from PIL import Image
+import pytesseract
 import random
 
 client = openai.OpenAI()
@@ -114,6 +117,40 @@ def enhanced_commendation(name, title, org):
     middle = "This accolade reflects your dedication and significant contributions to our community."
     close = "Please accept my best wishes for your continued success."
     return " ".join(parts + [middle, close])
+
+def read_uploaded_file(uploaded_file):
+    """Return extracted text and source type from an uploaded file."""
+    suffix = Path(uploaded_file.name).suffix.lower()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(uploaded_file.read())
+        tmp_path = tmp.name
+
+    text = ""
+    try:
+        if suffix == ".pdf":
+            text = extract_text(tmp_path)
+        elif suffix in {".txt", ".csv"}:
+            with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+        elif suffix == ".docx":
+            doc = Document(tmp_path)
+            text = "\n".join(p.text for p in doc.paragraphs)
+        elif suffix in {".xlsx", ".xls"}:
+            df = pd.read_excel(tmp_path, header=None)
+            lines = []
+            for row in df.astype(str).values:
+                line = " ".join(cell for cell in row if cell and cell != "nan")
+                if line:
+                    lines.append(line)
+            text = "\n".join(lines)
+        elif suffix in {".png", ".jpg", ".jpeg"}:
+            try:
+                text = pytesseract.image_to_string(Image.open(tmp_path))
+            except Exception:
+                text = ""
+        return text, suffix.lstrip(".")
+    finally:
+        os.remove(tmp_path)
 
 def log_certificates(original_data, final_data, event_text, source="pasted", global_comment=""):
     log_dir = Path("logs")
@@ -307,20 +344,18 @@ def split_certificate(index):
 st.set_page_config(layout="centered")
 st.title("📁 Certificate Review Assistant")
 
-pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
+uploaded_file = st.file_uploader(
+    "Upload file (optional)",
+    type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"],
+)
 text_input = st.text_area("Or paste certificate request text here", height=300)
 
-if not pdf_file and not text_input.strip():
-    st.warning("Please upload a PDF or paste request text.")
+if not uploaded_file and not text_input.strip():
+    st.warning("Please upload a file or paste request text.")
     st.stop()
 
-if pdf_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(pdf_file.read())
-        tmp_path = tmp.name
-    pdf_text = extract_text(tmp_path)
-    os.remove(tmp_path)
-    source_type = "pdf"
+if uploaded_file:
+    pdf_text, source_type = read_uploaded_file(uploaded_file)
 else:
     pdf_text = text_input
     source_type = "pasted"

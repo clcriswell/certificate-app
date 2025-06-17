@@ -1,6 +1,7 @@
 # Certificate Generator (Streamlit + GPT-4o)
 
 This version uses `pdfminer.six` for stable PDF text extraction on Streamlit Cloud.
+You can also upload text, Word, Excel, CSV, and image files. Images are processed using OCR via Tesseract (make sure the `tesseract` binary is installed).
 
 ## 🚀 How to Deploy
 

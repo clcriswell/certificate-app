@@ -4,3 +4,6 @@ pandas
 pdfminer.six
 python-docx
 python-dateutil
+openpyxl
+pillow
+pytesseract
