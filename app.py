@@ -393,7 +393,6 @@ for i, cert in enumerate(cert_rows, 1):
         approved = not exclude
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
-        prev_comment = cert.get("reviewer_comment", "")
         cert["Name"] = name
         cert["Title"] = title
         cert["Organization"] = org
@@ -404,11 +403,18 @@ for i, cert in enumerate(cert_rows, 1):
         cert["Date_Size"] = date_size
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
-        if indiv_comment.strip() and indiv_comment != prev_comment:
-            try:
-                regenerate_certificate(cert, global_comment, indiv_comment)
-            except Exception as e:
-                st.error(str(e))
+
+        if st.button("🔄 Regenerate Certificate", key=f"regen_{i}"):
+            if indiv_comment.strip():
+                try:
+                    regenerate_certificate(cert, global_comment, indiv_comment)
+                    cert["Name_Size"] = determine_name_font_size(cert["Name"])
+                    cert["Title_Size"] = determine_title_font_size(format_display_title(cert["Title"], cert["Organization"]))
+                except Exception as e:
+                    st.error(str(e))
+            st.session_state.cert_rows[i-1] = cert
+            st.experimental_rerun()
+
         st.session_state.cert_rows[i-1] = cert
         final_cert_rows.append(cert)
 
