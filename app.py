@@ -204,7 +204,12 @@ def generate_word_certificates(entries):
             doc.add_page_break()
             text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
             spacer_lines = max(6, 14 - text_line_count)
-            doc.add_paragraph("\n" * spacer_lines).runs[0].font.size = Pt(12)
+            text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
+            spacer_lines = max(6, 14 - text_line_count)
+
+            p_spacer = doc.add_paragraph()
+            p_spacer.paragraph_format.space_before = Pt(spacer_lines * 12)
+            p_spacer.add_run(" ").font.size = Pt(12)
 
 
         p_name = doc.add_paragraph(entry["Name"])
