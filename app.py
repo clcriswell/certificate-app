@@ -72,28 +72,12 @@ def extract_event_date(text):
         return match.group(0)
     return "unknown"
 
-def determine_font_size(field, value):
-    base_size = {
-        "Name": 32,
-        "Certificate_Text": 16,
-        "Formatted_Date": 14,
-        "Title": 18,
-        "Organization": 14
-    }.get(field, 12)
-
-    if field == "Name":
-        return max(20, base_size - int(len(value) / 2))
-    elif field == "Certificate_Text":
-        return max(12, base_size - int(len(value) / 10))
-    else:
-        return base_size
-
-# ─── UI SETUP ───────────────────────────────────────────
+# ─── UI ────────────────────────────────────────────────
 st.set_page_config(layout="centered")
-st.title("📑 Certificate CSV Generator (Multi-Entry)")
+st.title("📁 Certificate CSV Generator (Multi-Entry)")
 st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading a CSV.")
 
-pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
+pdf_file = st.file_uploader("📏 Upload Certificate Request PDF", type=["pdf"])
 if not pdf_file:
     st.stop()
 
@@ -103,8 +87,8 @@ with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
 pdf_text = extract_text(tmp_path)
 os.remove(tmp_path)
 
+# ─── GPT PROMPT ─────────────────────────────────────────
 event_date = extract_event_date(pdf_text)
-
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your job is to extract ALL the individual certificates mentioned.
 
@@ -118,13 +102,19 @@ For each certificate, return:
 - commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
 
 Respond only with JSON in this format:
-[{{"name": "Jane Smith","title": "Volunteer of the Year","organization": "Good Neighbors Foundation","date_raw": "June 12, 2025","commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."}}]
-
+[
+  {{
+    "name": "Jane Smith",
+    "title": "Volunteer of the Year",
+    "organization": "Good Neighbors Foundation",
+    "date_raw": "June 12, 2025",
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."
+  }}
+]
 DO NOT include markdown (like ```), explanations, or extra text.
 """
 
 cert_rows = []
-
 try:
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
@@ -134,15 +124,9 @@ try:
         ],
         temperature=0
     )
-
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
-
-    with st.expander("🧾 Show Raw GPT Output (Debug)", expanded=False):
-        st.code(content, language="json")
-
     parsed_entries = json.loads(cleaned)
-
     for parsed in parsed_entries:
         cert_rows.append({
             "Name": parsed["name"],
@@ -152,7 +136,6 @@ try:
             "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
             "Tone_Category": categorize_tone(parsed["title"])
         })
-
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
     st.text("No content received. Exception details:")
@@ -172,7 +155,6 @@ if st.button("📥 Download CSV for Mail Merge"):
     csv_buffer = io.BytesIO()
     df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
     csv_data = csv_buffer.getvalue()
-
     st.download_button(
         label="📊 Download CSV",
         data=csv_data,
@@ -180,24 +162,18 @@ if st.button("📥 Download CSV for Mail Merge"):
         mime="text/csv"
     )
 
-# ─── Generate Certificates in Word ─────────────────────────────────────
+# ─── WORD OUTPUT ────────────────────────────────────────
 def generate_word_certificates(entries, template_path="template.docx"):
     merged_doc = Document()
-
     for i, row in enumerate(entries):
         temp_doc = Document(template_path)
-
-        # Spacer to push content halfway down the page
         top_spacer = merged_doc.add_paragraph()
         top_spacer.paragraph_format.space_before = Pt(200)
-
         for para in temp_doc.paragraphs:
             new_para = merged_doc.add_paragraph()
             is_signature = "{{Signature_Block}}" in para.text
-
             for run in para.runs:
                 text = run.text
-
                 if "{{Signature_Block}}" in text:
                     for line_text in [
                         "__________________________________________",
@@ -211,20 +187,18 @@ def generate_word_certificates(entries, template_path="template.docx"):
                         sig_run.font.name = "Times New Roman"
                         sig_run.font.size = Pt(12)
                     break
-
                 for key, value in row.items():
                     placeholder = f"{{{{{key}}}}}"
                     if placeholder in text:
                         text = text.replace(placeholder, str(value))
                         new_run = new_para.add_run(text)
                         new_run.font.name = "Times New Roman"
-
-                        # Style each element
                         if key == "Name":
-    new_run.font.bold = True
-    new_run.font.size = Pt(64)  # Previously fixed
-
-
+                            name_length = len(str(value))
+                            size = 64 if name_length <= 12 else 52 if name_length <= 18 else 44 if name_length <= 24 else 36 if name_length <= 30 else 28
+                            new_run.font.bold = True
+                            new_run.font.size = Pt(size)
+                            new_para.paragraph_format.space_after = Pt(2)
                         elif key == "Title":
                             new_run.font.bold = True
                             new_run.font.size = Pt(18)
@@ -232,7 +206,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
                             new_run.font.size = Pt(16)
                             new_para.paragraph_format.space_before = Pt(20)
                         elif key == "Formatted_Date":
-                            new_run.font.size = Pt(10)  # Smaller date
+                            new_run.font.size = Pt(10)
                             new_para.paragraph_format.space_before = Pt(20)
                         else:
                             new_run.font.size = Pt(12)
@@ -244,15 +218,11 @@ def generate_word_certificates(entries, template_path="template.docx"):
                     new_run.bold = run.bold
                     new_run.italic = run.italic
                     new_run.underline = run.underline
-
             if not is_signature:
                 new_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
         if i < len(entries) - 1:
             merged_doc.add_page_break()
-
     return merged_doc
-
 
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
@@ -260,7 +230,6 @@ if st.button("📄 Generate Word Certificates"):
         temp_word = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
         doc.save(temp_word.name)
         temp_word.seek(0)
-
         st.download_button(
             label="⬇️ Download Word Certificates",
             data=temp_word.read(),
