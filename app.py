@@ -245,6 +245,26 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
         cert["Formatted_Date"] = format_certificate_date(updated["date_raw"])
     return cert
 
+def split_certificate(index):
+    """Split a certificate with multiple names into separate entries."""
+    cert = st.session_state.cert_rows[index]
+    alt_names = cert.get("alternatives", {}).get("name")
+    if not alt_names:
+        parts = [n.strip() for n in cert.get("Name", "").replace("&", " and ").split(" and ")]
+        alt_names = [p for p in parts if p]
+    if len(alt_names) < 2:
+        return
+    new_certs = []
+    for name in alt_names[:2]:
+        new_cert = cert.copy()
+        new_cert["Name"] = name
+        new_cert["possible_split"] = False
+        new_cert["alternatives"] = {}
+        new_certs.append(new_cert)
+    st.session_state.cert_rows = (
+        st.session_state.cert_rows[:index] + new_certs + st.session_state.cert_rows[index+1:]
+    )
+
 st.set_page_config(layout="centered")
 st.title("📁 Certificate Review Assistant")
 
@@ -315,28 +335,10 @@ for i, cert in enumerate(cert_rows, 1):
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
             decision = st.radio("Would you like to split this?", ["Keep as one", "Split into two"], key=f"split_{i}")
-            if decision == "Split into two" and cert.get("alternatives", {}).get("name"):
-                for alt_name in cert["alternatives"]["name"]:
-                    name = st.text_input("Name", value=alt_name, key=f"name_{i}_{alt_name}")
-                    title = st.text_input("Title", value=cert["Title"], key=f"title_{i}_{alt_name}")
-                    org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}_{alt_name}")
-                    text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}_{alt_name}")
-                    approved = st.checkbox("✅ Approve", value=True, key=f"approve_{i}_{alt_name}")
-                    cert_copy = {
-                        "Name": name,
-                        "Title": title,
-                        "Organization": org,
-                        "Certificate_Text": text,
-                        "Formatted_Date": cert["Formatted_Date"],
-                        "Tone_Category": cert["Tone_Category"],
-                        "Name_Size": cert.get("Name_Size", determine_name_font_size(name)),
-                        "Title_Size": cert.get("Title_Size", determine_title_font_size(title)),
-                        "Text_Size": cert.get("Text_Size", 14),
-                        "Date_Size": cert.get("Date_Size", 12),
-                    }
-                    cert_copy["approved"] = approved
-                    final_cert_rows.append(cert_copy)
-                continue
+            if decision == "Split into two" and not st.session_state.get(f"split_done_{i}"):
+                split_certificate(i-1)
+                st.session_state[f"split_done_{i}"] = True
+                st.experimental_rerun()
 
         name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
         title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
