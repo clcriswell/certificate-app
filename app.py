@@ -165,7 +165,7 @@ for i, cert in enumerate(cert_rows, 1):
     with st.expander(f"{cert['Tone_Category']} #{i}: {cert['Name']} – {cert['Title']}"):
         st.write(f"**Organization:** {cert['Organization']}")
         st.write(f"**Date:** {cert['Formatted_Date']}")
-        st.text_area("📜 Commendation", cert["Certificate_Text"], height=100)
+        st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"commendation_{i}")
 
 # ─── EXPORT TO CSV ──────────────────────────────────────
 if st.button("📥 Download CSV for Mail Merge"):
@@ -184,6 +184,7 @@ if st.button("📥 Download CSV for Mail Merge"):
 from docx.shared import Pt
 from docx.oxml.ns import qn
 
+# ─── Generate Certificates in Word ──────────────────────────────────────
 def generate_word_certificates(entries, template_path="template.docx"):
     output_doc = Document()
 
