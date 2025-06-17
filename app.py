@@ -9,6 +9,7 @@ import openai
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.section import WD_SECTION
 import random
 
 client = openai.OpenAI()
@@ -389,17 +390,23 @@ for i, cert in enumerate(cert_rows, 1):
 
 def generate_word_certificates(entries):
     doc = Document()
-    section = doc.sections[0]
-    section.page_height = Inches(11)
-    section.page_width = Inches(8.5)
-    section.top_margin = Inches(1)
-    section.bottom_margin = Inches(0.25)
-    section.left_margin = Inches(.75)
-    section.right_margin = Inches(.75)
+    base_section = doc.sections[0]
+    base_section.page_height = Inches(11)
+    base_section.page_width = Inches(8.5)
+    base_section.top_margin = Inches(1)
+    base_section.bottom_margin = Inches(0.25)
+    base_section.left_margin = Inches(.75)
+    base_section.right_margin = Inches(.75)
 
     for i, entry in enumerate(entries):
         if i > 0:
-            doc.add_page_break()
+            section = doc.add_section(WD_SECTION.NEW_PAGE)
+            section.page_height = Inches(11)
+            section.page_width = Inches(8.5)
+            section.top_margin = Inches(1)
+            section.bottom_margin = Inches(0.25)
+            section.left_margin = Inches(.75)
+            section.right_margin = Inches(.75)
 
         # Initial spacer so the name block begins 4.5" from the top
         p_spacer = doc.add_paragraph()
