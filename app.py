@@ -187,6 +187,10 @@ def generate_word_certificates(entries, template_path="template.docx"):
     for i, row in enumerate(entries):
         temp_doc = Document(template_path)
 
+        # Spacer to push content halfway down the page
+        top_spacer = merged_doc.add_paragraph()
+        top_spacer.paragraph_format.space_before = Pt(200)
+
         for para in temp_doc.paragraphs:
             new_para = merged_doc.add_paragraph()
             is_signature = "{{Signature_Block}}" in para.text
@@ -195,20 +199,17 @@ def generate_word_certificates(entries, template_path="template.docx"):
                 text = run.text
 
                 if "{{Signature_Block}}" in text:
-                    line1 = merged_doc.add_paragraph("__________________________________________")
-                    line1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                    line1.runs[0].font.name = "Times New Roman"
-                    line1.runs[0].font.size = Pt(12)
-
-                    line2 = merged_doc.add_paragraph("Stan Ellis")
-                    line2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                    line2.runs[0].font.name = "Times New Roman"
-                    line2.runs[0].font.size = Pt(12)
-
-                    line3 = merged_doc.add_paragraph("Assemblyman, 32nd District")
-                    line3.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                    line3.runs[0].font.name = "Times New Roman"
-                    line3.runs[0].font.size = Pt(12)
+                    for line_text in [
+                        "__________________________________________",
+                        "Stan Ellis",
+                        "Assemblyman, 32nd District"
+                    ]:
+                        sig_para = merged_doc.add_paragraph(line_text)
+                        sig_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                        sig_para.paragraph_format.space_before = Pt(20)
+                        sig_run = sig_para.runs[0]
+                        sig_run.font.name = "Times New Roman"
+                        sig_run.font.size = Pt(12)
                     break
 
                 for key, value in row.items():
@@ -218,14 +219,20 @@ def generate_word_certificates(entries, template_path="template.docx"):
                         new_run = new_para.add_run(text)
                         new_run.font.name = "Times New Roman"
 
+                        # Style each element
                         if key == "Name":
                             new_run.font.bold = True
-                            new_run.font.size = Pt(determine_font_size("Name", value))
+                            new_run.font.size = Pt(64)  # Doubled from ~32
+                            new_para.paragraph_format.space_after = Pt(2)  # Tight spacing under name
                         elif key == "Title":
                             new_run.font.bold = True
                             new_run.font.size = Pt(18)
-                        elif key in ["Certificate_Text", "Formatted_Date"]:
-                            new_run.font.size = Pt(14)
+                        elif key == "Certificate_Text":
+                            new_run.font.size = Pt(16)
+                            new_para.paragraph_format.space_before = Pt(20)
+                        elif key == "Formatted_Date":
+                            new_run.font.size = Pt(10)  # Smaller date
+                            new_para.paragraph_format.space_before = Pt(20)
                         else:
                             new_run.font.size = Pt(12)
                         break
@@ -244,6 +251,7 @@ def generate_word_certificates(entries, template_path="template.docx"):
             merged_doc.add_page_break()
 
     return merged_doc
+
 
 if st.button("📄 Generate Word Certificates"):
     with st.spinner("Generating Word document..."):
