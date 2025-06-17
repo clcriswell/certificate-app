@@ -77,7 +77,7 @@ def log_certificates(original_data, final_data, event_text, source="pasted", glo
                 "final_organization": final.get("Organization", ""),
                 "original_commendation": original.get("commendation", ""),
                 "final_commendation": final.get("Certificate_Text", ""),
-                "approved": True
+                "approved": True,
                 "reviewer_comment": final.get("reviewer_comment", ""),
                 "global_comment": global_comment
             }
