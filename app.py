@@ -101,6 +101,34 @@ def load_example_certificates(n=3):
 
     return random.sample(entries, min(len(entries), n))
 
+def load_learned_preferences(path="learned_preferences.json"):
+    if not Path(path).exists():
+        return ""
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return ""
+
+    prefs = ""
+
+    phrases = data.get("common_phrases", [])
+    tone = data.get("tone_preferences", [])
+
+    if phrases:
+        prefs += "Preferred phrases for commendations include:\n"
+        for p in phrases:
+            prefs += f"- {p}\n"
+
+    if tone:
+        prefs += "\nTone suggestions:\n"
+        for t in tone:
+            prefs += f"- {t}\n"
+
+    return prefs.strip()
+
+
 # ─── UI Setup ──────────────────────────────────────────────
 st.set_page_config(layout="centered")
 st.title("📑 Certificate Review Assistant")
@@ -142,6 +170,8 @@ few_shot_block = ""
 if few_shot_examples.strip():
     few_shot_block = f"\nHere are a few example certificates to follow for style and tone:\n{few_shot_examples}"
 
+learned_guidance = load_learned_preferences()
+
 SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
@@ -158,12 +188,15 @@ Each certificate must include:
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
+{f"Here are preferences based on prior approvals:\n{learned_guidance}" if learned_guidance else ""}
+
 {few_shot_block}
 
 The event date is: {event_date}
 
 Return ONLY valid JSON.
 """
+
 
 
 cert_rows = []
