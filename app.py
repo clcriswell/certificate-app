@@ -1,6 +1,7 @@
 import streamlit as st
 import re, os, json, tempfile, io
 from datetime import datetime
+from pathlib import Path
 import pandas as pd
 from pdfminer.high_level import extract_text
 import openai
@@ -54,10 +55,35 @@ def enhanced_commendation(name, title, org):
     close = "I wish you all the best in your future endeavors."
     return f"{base} {middle} {close}"
 
+def log_certificates(original_data, final_data, event_text, source="pasted"):
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    log_file = log_dir / f"cert_logs_{timestamp[:10]}.jsonl"
+    with log_file.open("a", encoding="utf-8") as f:
+        for original, final in zip(original_data, final_data):
+            if not final.get("approved"):
+                continue
+            entry = {
+                "timestamp": timestamp,
+                "source": source,
+                "event_text": event_text[:1000],
+                "original_name": original.get("name", ""),
+                "final_name": final.get("Name", ""),
+                "original_title": original.get("title", ""),
+                "final_title": final.get("Title", ""),
+                "original_organization": original.get("organization", ""),
+                "final_organization": final.get("Organization", ""),
+                "original_commendation": original.get("commendation", ""),
+                "final_commendation": final.get("Certificate_Text", ""),
+                "approved": True
+            }
+            f.write(json.dumps(entry) + "\n")
+
+# ─── UI + INPUT ─────────────────────────────────────────
 st.set_page_config(layout="centered")
 st.title("📑 Certificate Review Assistant")
 
-st.markdown("### 📎 Upload a PDF or Paste a Certificate Request")
 pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
 text_input = st.text_area("Or paste certificate request text here", height=300)
 
@@ -141,7 +167,7 @@ except Exception as e:
     st.text(str(e))
     st.stop()
 
-# ——— REVIEW & PREVIEW UI ———
+# ─── REVIEW + PREVIEW UI ─────────────────────────────────────
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
@@ -178,7 +204,7 @@ for i, cert in enumerate(cert_rows, 1):
             "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
         })
 
-        # PREVIEW
+        # LIVE PREVIEW
         st.markdown("---")
         st.markdown("#### 📄 Certificate Preview")
         lines = []
@@ -196,21 +222,20 @@ for i, cert in enumerate(cert_rows, 1):
         lines.append(f"<div style='text-align:right; font-size:14px;'>Assemblyman, 32nd District</div>")
         st.markdown("<br>".join(lines), unsafe_allow_html=True)
 
-# ——— GENERATE WORD DOC ———
+# ─── WORD GENERATION ─────────────────────────────────────
 def generate_word_certificates(entries):
     doc = Document()
     for i, entry in enumerate(entries):
         if i > 0:
             doc.add_page_break()
-            text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
-            spacer_lines = max(6, 14 - text_line_count)
-            text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
-            spacer_lines = max(6, 14 - text_line_count)
 
-            p_spacer = doc.add_paragraph()
-            p_spacer.paragraph_format.space_before = Pt(spacer_lines * 12)
-            p_spacer.add_run(" ").font.size = Pt(12)
+        # Adjust top spacing based on commendation length
+        text_line_count = entry["Certificate_Text"].count("\n") + len(entry["Certificate_Text"]) // 80
+        spacer_lines = max(6, 14 - text_line_count)
 
+        p_spacer = doc.add_paragraph()
+        p_spacer.paragraph_format.space_before = Pt(spacer_lines * 12)
+        p_spacer.add_run(" ").font.size = Pt(12)
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -259,11 +284,13 @@ def generate_word_certificates(entries):
             sig.runs[0].font.size = Pt(size)
     return doc
 
+# ─── FINAL BUTTON ───────────────────────────────────────
 if st.button("📄 Generate Word Certificates"):
     approved_entries = [c for c in final_cert_rows if c["approved"]]
     if not approved_entries:
         st.error("No certificates were approved.")
     else:
+        log_certificates(parsed_entries, approved_entries, pdf_text, source="pdf" if pdf_file else "pasted")
         with st.spinner("Generating Word document..."):
             doc = generate_word_certificates(approved_entries)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
@@ -275,4 +302,3 @@ if st.button("📄 Generate Word Certificates"):
                 file_name="Certificates.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
