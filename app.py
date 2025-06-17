@@ -57,6 +57,15 @@ def determine_title_font_size(title):
     if length <= 36: return 20
     return 18
 
+def choose_title_or_org(title: str, org: str) -> str:
+    """Return whichever of title or organization should be displayed."""
+    if not title.strip():
+        return org
+    normalized = title.strip().lower()
+    if normalized in {"certificate of recognition", "certificate of appreciation"}:
+        return org
+    return title
+
 def enhanced_commendation(name, title, org):
     base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
     middle = "This honor reflects your dedication and the meaningful contributions you’ve made to our community."
@@ -213,7 +222,8 @@ st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
-    with st.expander(f"📜 {cert['Name']} – {cert['Title']}"):
+    display_title = choose_title_or_org(cert['Title'], cert['Organization'])
+    with st.expander(f"📜 {cert['Name']} – {display_title}"):
 
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
@@ -254,10 +264,9 @@ for i, cert in enumerate(cert_rows, 1):
         st.markdown("#### 📄 Certificate Preview")
         lines = []
         lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
-        if title.strip():
-            lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{title}</div>")
-        if org.strip():
-            lines.append(f"<div style='text-align:center; font-size:18px;'>{org}</div>")
+        display_title = choose_title_or_org(title, org)
+        if display_title.strip():
+            lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{display_title}</div>")
         lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
         for line in cert["Formatted_Date"].split("\n"):
             lines.append(f"<div style='text-align:center; font-size:12px; margin-top:20px;'>{line}</div>")
@@ -285,12 +294,13 @@ def generate_word_certificates(entries):
         p_name.runs[0].font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
-        if entry["Title"].strip():
-            p_title = doc.add_paragraph(entry["Title"])
+        display_title = choose_title_or_org(entry["Title"], entry["Organization"])
+        if display_title.strip():
+            p_title = doc.add_paragraph(display_title)
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_title.runs[0].bold = True
             p_title.runs[0].font.name = "Times New Roman"
-            p_title.runs[0].font.size = Pt(determine_title_font_size(entry["Title"]))
+            p_title.runs[0].font.size = Pt(determine_title_font_size(display_title))
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
