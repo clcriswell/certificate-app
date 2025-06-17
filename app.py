@@ -3,6 +3,8 @@ import os
 import json
 import tempfile
 from datetime import datetime
+import re
+from dateutil import parser as date_parser
 from pathlib import Path
 from pdfminer.high_level import extract_text
 import openai
@@ -42,6 +44,26 @@ def format_certificate_date(raw_date_str):
     }
     year_words = year_map.get(dt.year, dt.strftime("%Y"))
     return f"Dated the {day}{suffix} of {month}\n{year_words}"
+
+def extract_event_date(text):
+    """Attempt to parse a date from freeform text."""
+    patterns = [
+        r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[\s\t]+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{2,4})?",
+        r"\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?",
+        r"\d{4}-\d{2}-\d{2}",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            date_str = match.group(0)
+            try:
+                dt = date_parser.parse(date_str, fuzzy=True, default=datetime(datetime.today().year, 1, 1))
+                if dt.year == 1900:
+                    dt = dt.replace(year=datetime.today().year)
+                return dt.strftime("%B %d, %Y")
+            except Exception:
+                continue
+    return None
 
 def determine_name_font_size(name):
     length = len(name)
@@ -287,7 +309,20 @@ else:
     pdf_text = text_input
     source_type = "pasted"
 
-event_date = format_certificate_date(datetime.today().strftime("%B %d, %Y"))
+# Attempt to auto-detect the event date from the text
+auto_date_raw = extract_event_date(pdf_text)
+if "event_date_raw" not in st.session_state:
+    st.session_state.event_date_raw = auto_date_raw or ""
+if not auto_date_raw:
+    st.info("Event date not detected. Please enter it below.")
+
+event_date_input = st.text_input(
+    "Event Date (e.g., May 31, 2024)", value=st.session_state.event_date_raw
+)
+st.session_state.event_date_raw = event_date_input
+event_date_raw = st.session_state.event_date_raw or datetime.today().strftime("%B %d, %Y")
+formatted_event_date = format_certificate_date(event_date_raw)
+st.session_state.formatted_event_date = formatted_event_date
 examples = load_example_certificates(3)
 few_shot_examples = ""
 for idx, ex in enumerate(examples, 1):
@@ -295,7 +330,7 @@ for idx, ex in enumerate(examples, 1):
 
 if "parsed_entries" not in st.session_state:
     try:
-        parsed_entries, cert_rows = extract_certificates(pdf_text, event_date)
+        parsed_entries, cert_rows = extract_certificates(pdf_text, event_date_raw)
     except Exception as e:
         st.error("⚠️ GPT failed to extract entries.")
         st.text(str(e))
@@ -306,6 +341,9 @@ if "parsed_entries" not in st.session_state:
 else:
     parsed_entries = st.session_state.parsed_entries
     cert_rows = st.session_state.cert_rows
+
+for cert in cert_rows:
+    cert["Formatted_Date"] = st.session_state.formatted_event_date
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
