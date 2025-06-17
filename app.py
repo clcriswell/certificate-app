@@ -56,7 +56,7 @@ def enhanced_commendation(name, title, org):
     close = "I wish you all the best in your future endeavors."
     return f"{base} {middle} {close}"
 
-def log_certificates(original_data, final_data, event_text, source="pasted"):
+def log_certificates(original_data, final_data, event_text, source="pasted", global_comment=""):
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     timestamp = datetime.now().isoformat(timespec="seconds")
@@ -78,6 +78,8 @@ def log_certificates(original_data, final_data, event_text, source="pasted"):
                 "original_commendation": original.get("commendation", ""),
                 "final_commendation": final.get("Certificate_Text", ""),
                 "approved": True
+                "reviewer_comment": final.get("reviewer_comment", ""),
+                "global_comment": global_comment
             }
             f.write(json.dumps(entry) + "\n")
 
@@ -244,6 +246,12 @@ except Exception as e:
     st.stop()
 
 # ─── REVIEW + PREVIEW UI ─────────────────────────────────────
+st.subheader("💬 Global Comments")
+global_comment = st.text_area(
+    "Optional: Enter general comments, tone guidance, or feedback that applies to all certificates.",
+    placeholder="e.g., 'Make all commendations sound more formal.'",
+    key="global_comment"
+)
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
 
@@ -273,12 +281,15 @@ for i, cert in enumerate(cert_rows, 1):
         org = st.selectbox("Organization", options=alt.get("organization", [cert["Organization"]]), key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
+        indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
         final_cert_rows.append({
             "approved": approved, "Name": name, "Title": title,
             "Organization": org, "Certificate_Text": text,
-            "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"]
-        })
+            "Formatted_Date": cert["Formatted_Date"], "Tone_Category": cert["Tone_Category"],
+            "reviewer_comment": indiv_comment
+})
+
 
         # LIVE PREVIEW
         st.markdown("---")
@@ -366,7 +377,7 @@ if st.button("📄 Generate Word Certificates"):
     if not approved_entries:
         st.error("No certificates were approved.")
     else:
-        log_certificates(parsed_entries, approved_entries, pdf_text, source="pdf" if pdf_file else "pasted")
+        log_certificates(parsed_entries, approved_entries, pdf_text, source="pdf" if pdf_file else "pasted", global_comment=global_comment)
         with st.spinner("Generating Word document..."):
             doc = generate_word_certificates(approved_entries)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
