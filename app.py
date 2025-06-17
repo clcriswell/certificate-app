@@ -6,7 +6,7 @@ from pdfminer.high_level import extract_text
 import openai
 
 # ─── CONFIG ─────────────────────────────────────────────
-client = openai.OpenAI()  # uses st.secrets["OPENAI_API_KEY"] automatically
+client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
 # ─── HELPERS ────────────────────────────────────────────
@@ -128,12 +128,12 @@ try:
     )
 
     content = response.choices[0].message.content
-
-with st.expander("🧾 Show Raw GPT Output (Debug)", expanded=False):
-    st.code(content, language="json")
-
-
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+
+    # ⬇️ Collapsible debug output
+    with st.expander("🧾 Show Raw GPT Output (Debug)", expanded=False):
+        st.code(content, language="json")
+
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
