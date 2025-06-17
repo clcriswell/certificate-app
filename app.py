@@ -63,6 +63,12 @@ def fallback_commendation(name, title, org):
     msg += "This recognition speaks highly of your dedication and contributions to the community."
     return msg
 
+def enhanced_commendation(name, title, org):
+    base = f"On behalf of the California State Legislature, congratulations on being recognized as {title} with {org}."
+    middle = "This honor reflects your dedication and the meaningful contributions you’ve made to our community."
+    close = "I wish you all the best in your future endeavors."
+    return f"{base} {middle} {close}"
+
 def extract_event_date(text):
     match = re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+20\d{2}", text)
     if match:
@@ -79,6 +85,13 @@ def determine_name_font_size(name):
     if length <= 24: return 40
     if length <= 30: return 34
     return 28
+
+def determine_title_font_size(title):
+    length = len(title)
+    if length <= 20: return 28
+    if length <= 30: return 24
+    if length <= 36: return 20
+    return 18
 
 # ─── UI SETUP ───────────────────────────────────────────
 st.set_page_config(layout="centered")
@@ -107,10 +120,18 @@ For each certificate, return:
 - title (award or position)
 - organization
 - date_raw (use the event date if no specific date is mentioned per recipient)
-- commendation: A 1–2 sentence formal message starting with "On behalf of the California State Legislature, ..."
+- commendation: A 2–3 sentence formal message that begins with "On behalf of the California State Legislature, ..." and includes a congratulatory statement, a community value reflection, and a closing best wishes sentence.
 
 Respond only with JSON in this format:
-[{{"name": "Jane Smith","title": "Volunteer of the Year","organization": "Good Neighbors Foundation","date_raw": "June 12, 2025","commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated."}}]
+[
+  {{
+    "name": "Jane Smith",
+    "title": "Volunteer of the Year",
+    "organization": "Good Neighbors Foundation",
+    "date_raw": "June 12, 2025",
+    "commendation": "On behalf of the California State Legislature, congratulations on being named Volunteer of the Year. Your service to Good Neighbors Foundation is deeply appreciated. I wish you all the best in your future endeavors."
+  }}
+]
 
 DO NOT include markdown, explanations, or extra text.
 """
@@ -139,11 +160,15 @@ try:
         if parsed["title"].strip().lower() == "certificate of recognition":
             parsed["title"] = ""
 
+        commendation = parsed.get("commendation", "").strip()
+        if not commendation:
+            commendation = enhanced_commendation(parsed["name"], parsed["title"], parsed["organization"])
+
         cert_rows.append({
             "Name": parsed["name"],
             "Title": parsed["title"],
             "Organization": parsed["organization"],
-            "Certificate_Text": parsed["commendation"],
+            "Certificate_Text": commendation,
             "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
             "Tone_Category": categorize_tone(parsed["title"])
         })
@@ -161,13 +186,6 @@ for i, cert in enumerate(cert_rows, 1):
         st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"commendation_{i}")
 
 # ─── WORD CERTIFICATE GENERATION ───────────────────────
-def determine_title_font_size(title):
-    length = len(title)
-    if length <= 20: return 28
-    if length <= 30: return 24
-    if length <= 36: return 20
-    return 18
-
 def generate_word_certificates(entries, template_path="template.docx"):
     doc = Document()
 
@@ -175,10 +193,8 @@ def generate_word_certificates(entries, template_path="template.docx"):
         if i > 0:
             doc.add_page_break()
 
-        # Vertical spacer (~half page)
         doc.add_paragraph("\n" * 14).runs[0].font.size = Pt(12)
 
-        # NAME (large, bold, centered)
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = p_name.runs[0]
@@ -187,7 +203,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.size = Pt(determine_name_font_size(entry["Name"]))
         p_name.paragraph_format.space_after = Pt(6)
 
-        # TITLE (bold, font scales with length)
         if entry["Title"].strip():
             p_title = doc.add_paragraph(entry["Title"])
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -196,7 +211,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.name = "Times New Roman"
             run.font.size = Pt(determine_title_font_size(entry["Title"]))
 
-        # COMMENDATION TEXT
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
@@ -204,7 +218,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
         run.font.name = "Times New Roman"
         run.font.size = Pt(14)
 
-        # DATE BLOCK (two lines, 12pt, no spacing between lines)
         date_lines = entry["Formatted_Date"].split("\n")
         for idx, line in enumerate(date_lines):
             p_date = doc.add_paragraph(line)
@@ -215,14 +228,12 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.name = "Times New Roman"
             run.font.size = Pt(12)
 
-        # 5 lines of spacing after date (12pt)
         for _ in range(5):
             p_pad = doc.add_paragraph(" ")
             p_pad.paragraph_format.space_before = Pt(0)
             p_pad.paragraph_format.space_after = Pt(0)
             p_pad.runs[0].font.size = Pt(12)
 
-        # SIGNATURE BLOCK (no spacing between lines)
         for line, size in [
             ("_____________________________________", 12),
             ("Stan Ellis", 14),
@@ -237,7 +248,6 @@ def generate_word_certificates(entries, template_path="template.docx"):
             run.font.size = Pt(size)
 
     return doc
-
 
 # ─── STREAMLIT ACTION BUTTON ───────────────────────────
 if st.button("📄 Generate Word Certificates"):
