@@ -416,7 +416,7 @@ for i, cert in enumerate(cert_rows, 1):
         display_title = format_display_title(title, org)
         if display_title.strip():
             lines.append(f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold;'>{display_title}</div>")
-        lines.append(f"<div style='text-align:center; font-size:{int(text_size)}px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
+        lines.append(f"<div style='text-align:center; font-size:{int(text_size)}px; margin-top:15px;'>{text.replace(chr(10), '<br>')}</div>")
         for line in cert["Formatted_Date"].split("\n"):
             lines.append(f"<div style='text-align:center; font-size:{int(date_size)}px; margin-top:20px;'>{line}</div>")
         lines.append("<br>" * 5)
@@ -464,7 +464,7 @@ def generate_word_certificates(entries):
         p_name.runs[0].bold = True
         p_name.runs[0].font.name = "Times New Roman"
         p_name.runs[0].font.size = Pt(name_size)
-        p_name.paragraph_format.space_after = Pt(6)
+        p_name.paragraph_format.space_after = Pt(3)
 
         display_title = format_display_title(entry["Title"], entry["Organization"])
         if display_title.strip():
@@ -476,7 +476,7 @@ def generate_word_certificates(entries):
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_text.paragraph_format.space_before = Pt(20)
+        p_text.paragraph_format.space_before = Pt(10)
         p_text.runs[0].font.name = "Times New Roman"
         p_text.runs[0].font.size = Pt(text_size)
 
