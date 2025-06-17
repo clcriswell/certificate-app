@@ -7,7 +7,7 @@ from pathlib import Path
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import random
 
@@ -400,48 +400,69 @@ for i, cert in enumerate(cert_rows, 1):
 
 def generate_word_certificates(entries):
     doc = Document()
+    section = doc.sections[0]
+    section.page_height = Inches(11)
+    section.page_width = Inches(8.5)
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(0.75)
+    section.left_margin = Inches(1)
+    section.right_margin = Inches(1)
+
     for i, entry in enumerate(entries):
         if i > 0:
             doc.add_page_break()
 
+        # Initial spacer so the name block begins 4.5" from the top
         p_spacer = doc.add_paragraph()
-        p_spacer.paragraph_format.space_before = Pt(250)
+        p_spacer.paragraph_format.space_before = Pt(252)  # 3.5" after 1" margin
         p_spacer.add_run(" ").font.size = Pt(12)
+
+        name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
+        title_size = max(10, round(name_size / 2))
+        safe_title = determine_title_font_size(format_display_title(entry["Title"], entry["Organization"]))
+        while title_size > safe_title and name_size > 20:
+            name_size -= 2
+            title_size = round(name_size / 2)
+        text_size = max(8, round(title_size * 0.75))
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_name.runs[0].bold = True
         p_name.runs[0].font.name = "Times New Roman"
-        p_name.runs[0].font.size = Pt(entry.get("Name_Size", determine_name_font_size(entry["Name"])))
+        p_name.runs[0].font.size = Pt(name_size)
         p_name.paragraph_format.space_after = Pt(6)
 
-        display_title = format_display_title(entry["Title"], entry["Organization"]) 
+        display_title = format_display_title(entry["Title"], entry["Organization"])
         if display_title.strip():
             p_title = doc.add_paragraph(display_title)
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_title.runs[0].bold = True
             p_title.runs[0].font.name = "Times New Roman"
-            p_title.runs[0].font.size = Pt(entry.get("Title_Size", determine_title_font_size(display_title)))
+            p_title.runs[0].font.size = Pt(title_size)
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
         p_text.runs[0].font.name = "Times New Roman"
-        p_text.runs[0].font.size = Pt(entry.get("Text_Size", 14))
+        p_text.runs[0].font.size = Pt(text_size)
+
+        # Spacer to position date block starting at 8.25" from the top
+        spacer_gap = doc.add_paragraph()
+        spacer_gap.paragraph_format.space_before = Pt(36)  # 0.5"
+        spacer_gap.add_run(" ").font.size = Pt(12)
 
         for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
             p_date = doc.add_paragraph(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 20)
+            p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 0)
             p_date.paragraph_format.space_after = Pt(0)
             p_date.runs[0].font.name = "Times New Roman"
             p_date.runs[0].font.size = Pt(entry.get("Date_Size", 12))
 
-        for _ in range(5):
-            spacer = doc.add_paragraph(" ")
-            spacer.paragraph_format.space_before = Pt(0)
-            spacer.paragraph_format.space_after = Pt(0)
-            spacer.runs[0].font.size = Pt(12)
+        # Spacer before signature block (1.25")
+        sig_spacer = doc.add_paragraph()
+        sig_spacer.paragraph_format.space_before = Pt(90)
+        sig_spacer.add_run(" ").font.size = Pt(12)
 
         for line, size in [
             ("_____________________________________", 12),
