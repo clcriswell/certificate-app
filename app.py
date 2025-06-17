@@ -378,3 +378,41 @@ if st.button("📄 Generate Word Certificates"):
                 file_name="Certificates.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
+
+# ─── KNOWLEDGE TAB ──────────────────────────────────────
+with st.sidebar.expander("📖 Knowledge (Admin Only)"):
+    password = st.text_input("Enter admin password", type="password")
+    if password == "simplepass":  # ✅ You can change this to whatever you want
+
+        prefs_path = "learned_preferences.json"
+        if Path(prefs_path).exists():
+            with open(prefs_path, "r", encoding="utf-8") as f:
+                current_prefs = json.load(f)
+        else:
+            current_prefs = {"common_phrases": [], "tone_preferences": []}
+
+        st.markdown("### ✍️ Edit Common Phrases")
+        new_phrases = st.text_area(
+            "One per line",
+            value="\n".join(current_prefs.get("common_phrases", [])),
+            height=150,
+        )
+
+        st.markdown("### ✍️ Edit Tone Notes")
+        new_tone = st.text_area(
+            "One per line",
+            value="\n".join(current_prefs.get("tone_preferences", [])),
+            height=100,
+        )
+
+        if st.button("💾 Save Preferences"):
+            updated = {
+                "common_phrases": [line.strip() for line in new_phrases.splitlines() if line.strip()],
+                "tone_preferences": [line.strip() for line in new_tone.splitlines() if line.strip()],
+                "notes": "This file is managed by the Certificate Generator's learning engine."
+            }
+            with open(prefs_path, "w", encoding="utf-8") as f:
+                json.dump(updated, f, indent=2)
+            st.success("Preferences saved.")
+    elif password:
+        st.error("Incorrect password.")
