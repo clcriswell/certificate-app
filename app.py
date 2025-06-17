@@ -140,29 +140,30 @@ try:
     parsed_entries = json.loads(cleaned)
 
     for parsed in parsed_entries:
-        title = parsed.get("title") or ""
-            if title.strip().lower() == "certificate of recognition":
-            parsed["title"] = ""
+    name = parsed.get("name") or "Recipient"
+    title = parsed.get("title") or ""
+    org = parsed.get("organization") or ""
+    commendation = parsed.get("commendation") or ""
 
+    # Remove redundant title
+    if title.strip().lower() == "certificate of recognition":
+        title = ""
 
-        commendation = parsed.get("commendation", "").strip()
-        if not commendation:
-            commendation = enhanced_commendation(
-                parsed.get("name", "Recipient"),
-                parsed.get("title", "Awardee"),
-                parsed.get("organization", "")
-            )
+    # Fallback commendation if GPT didn’t return one
+    if not commendation.strip():
+        commendation = enhanced_commendation(name, title, org)
 
-        cert_rows.append({
-            "Name": parsed.get("name", "Recipient"),
-            "Title": parsed.get("title", ""),
-            "Organization": parsed.get("organization", ""),
-            "Certificate_Text": commendation,
-            "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
-            "Tone_Category": "📝",
-            "possible_split": parsed.get("possible_split", False),
-            "alternatives": parsed.get("alternatives", {})
-        })
+    cert_rows.append({
+        "Name": name,
+        "Title": title,
+        "Organization": org,
+        "Certificate_Text": commendation,
+        "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+        "Tone_Category": "📝",
+        "possible_split": parsed.get("possible_split", False),
+        "alternatives": parsed.get("alternatives", {})
+    })
+
 
 except Exception as e:
     st.error("⚠️ GPT failed to extract entries.")
