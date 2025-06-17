@@ -98,15 +98,25 @@ st.set_page_config(layout="centered")
 st.title("📑 Certificate CSV Generator (Multi-Entry)")
 st.markdown("Upload a PDF certificate request and preview all auto-extracted entries before downloading.")
 
-pdf_file = st.file_uploader("📎 Upload Certificate Request PDF", type=["pdf"])
-if not pdf_file:
+st.markdown("### 📎 Step 1: Upload a certificate request PDF or paste text")
+
+pdf_file = st.file_uploader("Upload PDF (optional)", type=["pdf"])
+text_input = st.text_area("Or paste certificate request text here", height=300)
+
+if not pdf_file and not text_input.strip():
+    st.warning("Please upload a PDF or paste text to continue.")
     st.stop()
 
-with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-    tmp.write(pdf_file.read())
-    tmp_path = tmp.name
-pdf_text = extract_text(tmp_path)
-os.remove(tmp_path)
+# ─── TEXT EXTRACTION ───────────────────────────────────
+if pdf_file:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(pdf_file.read())
+        tmp_path = tmp.name
+    pdf_text = extract_text(tmp_path)
+    os.remove(tmp_path)
+else:
+    pdf_text = text_input
+
 
 event_date = extract_event_date(pdf_text)
 
