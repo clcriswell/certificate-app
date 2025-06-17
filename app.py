@@ -184,7 +184,11 @@ Return ONLY valid JSON.
             "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
             "Tone_Category": "📝",
             "possible_split": parsed.get("possible_split", False),
-            "alternatives": parsed.get("alternatives", {})
+            "alternatives": parsed.get("alternatives", {}),
+            "Name_Size": determine_name_font_size(name),
+            "Title_Size": determine_title_font_size(format_display_title(title, org)),
+            "Text_Size": 14,
+            "Date_Size": 12
         })
 
     return parsed_entries, cert_rows
@@ -318,6 +322,10 @@ for i, cert in enumerate(cert_rows, 1):
                         "Certificate_Text": text,
                         "Formatted_Date": cert["Formatted_Date"],
                         "Tone_Category": cert["Tone_Category"],
+                        "Name_Size": cert.get("Name_Size", determine_name_font_size(name)),
+                        "Title_Size": cert.get("Title_Size", determine_title_font_size(title)),
+                        "Text_Size": cert.get("Text_Size", 14),
+                        "Date_Size": cert.get("Date_Size", 12),
                     }
                     cert_copy["approved"] = approved
                     final_cert_rows.append(cert_copy)
@@ -327,6 +335,13 @@ for i, cert in enumerate(cert_rows, 1):
         title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
         org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
         text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
+        col1, col2 = st.columns(2)
+        with col1:
+            name_size = st.number_input("Name Size", 20, 80, int(cert.get("Name_Size", determine_name_font_size(name))), key=f"name_size_{i}")
+            title_size = st.number_input("Title Size", 12, 60, int(cert.get("Title_Size", determine_title_font_size(title))), key=f"title_size_{i}")
+        with col2:
+            text_size = st.number_input("Text Size", 10, 40, int(cert.get("Text_Size", 14)), key=f"text_size_{i}")
+            date_size = st.number_input("Date Size", 8, 30, int(cert.get("Date_Size", 12)), key=f"date_size_{i}")
         approved = st.checkbox("✅ Approve this certificate", value=True, key=f"approve_{i}")
         indiv_comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Optional feedback on this certificate", key=f"comment_{i}")
 
@@ -335,6 +350,10 @@ for i, cert in enumerate(cert_rows, 1):
         cert["Title"] = title
         cert["Organization"] = org
         cert["Certificate_Text"] = text
+        cert["Name_Size"] = name_size
+        cert["Title_Size"] = title_size
+        cert["Text_Size"] = text_size
+        cert["Date_Size"] = date_size
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
         if indiv_comment.strip() and indiv_comment != prev_comment:
@@ -348,13 +367,13 @@ for i, cert in enumerate(cert_rows, 1):
         st.markdown("---")
         st.markdown("#### 📄 Certificate Preview")
         lines = []
-        lines.append(f"<div style='text-align:center; font-size:48px; font-weight:bold;'>{name}</div>")
+        lines.append(f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold;'>{name}</div>")
         display_title = format_display_title(title, org)
         if display_title.strip():
-            lines.append(f"<div style='text-align:center; font-size:28px; font-weight:bold;'>{display_title}</div>")
-        lines.append(f"<div style='text-align:center; font-size:16px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
+            lines.append(f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold;'>{display_title}</div>")
+        lines.append(f"<div style='text-align:center; font-size:{int(text_size)}px; margin-top:30px;'>{text.replace(chr(10), '<br>')}</div>")
         for line in cert["Formatted_Date"].split("\n"):
-            lines.append(f"<div style='text-align:center; font-size:12px; margin-top:20px;'>{line}</div>")
+            lines.append(f"<div style='text-align:center; font-size:{int(date_size)}px; margin-top:20px;'>{line}</div>")
         lines.append("<br>" * 5)
         lines.append(f"<div style='text-align:right; font-size:12px;'>_____________________________________</div>")
         lines.append(f"<div style='text-align:right; font-size:14px;'>Stan Ellis</div>")
@@ -376,7 +395,7 @@ def generate_word_certificates(entries):
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_name.runs[0].bold = True
         p_name.runs[0].font.name = "Times New Roman"
-        p_name.runs[0].font.size = Pt(determine_name_font_size(entry["Name"]))
+        p_name.runs[0].font.size = Pt(entry.get("Name_Size", determine_name_font_size(entry["Name"])))
         p_name.paragraph_format.space_after = Pt(6)
 
         display_title = format_display_title(entry["Title"], entry["Organization"]) 
@@ -385,13 +404,13 @@ def generate_word_certificates(entries):
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_title.runs[0].bold = True
             p_title.runs[0].font.name = "Times New Roman"
-            p_title.runs[0].font.size = Pt(determine_title_font_size(display_title))
+            p_title.runs[0].font.size = Pt(entry.get("Title_Size", determine_title_font_size(display_title)))
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(20)
         p_text.runs[0].font.name = "Times New Roman"
-        p_text.runs[0].font.size = Pt(14)
+        p_text.runs[0].font.size = Pt(entry.get("Text_Size", 14))
 
         for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
             p_date = doc.add_paragraph(line)
@@ -399,7 +418,7 @@ def generate_word_certificates(entries):
             p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 20)
             p_date.paragraph_format.space_after = Pt(0)
             p_date.runs[0].font.name = "Times New Roman"
-            p_date.runs[0].font.size = Pt(12)
+            p_date.runs[0].font.size = Pt(entry.get("Date_Size", 12))
 
         for _ in range(5):
             spacer = doc.add_paragraph(" ")
