@@ -17,6 +17,14 @@ import random
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
+# Compatibility wrapper for Streamlit rerun functionality
+def safe_rerun():
+    """Trigger a rerun across Streamlit versions."""
+    if hasattr(st, "rerun"):
+        st.rerun()
+    elif hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
+
 def format_certificate_date(raw_date_str):
     try:
         dt = datetime.strptime(raw_date_str, "%B %d, %Y")
@@ -379,7 +387,7 @@ for i, cert in enumerate(cert_rows, 1):
             if decision == "Split into two" and not st.session_state.get(f"split_done_{i}"):
                 split_certificate(i-1)
                 st.session_state[f"split_done_{i}"] = True
-                st.experimental_rerun()
+                safe_rerun()
 
         name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
         title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
@@ -413,7 +421,7 @@ for i, cert in enumerate(cert_rows, 1):
                 except Exception as e:
                     st.error(str(e))
             st.session_state.cert_rows[i-1] = cert
-            st.experimental_rerun()
+            safe_rerun()
 
         st.session_state.cert_rows[i-1] = cert
         final_cert_rows.append(cert)
