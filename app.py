@@ -228,18 +228,9 @@ for i, cert in enumerate(cert_rows):
         comment = st.text_area("✏️ Reviewer Comment", "", placeholder="Tone adjustment or rewrite guidance", key=f"comment_{i}")
 
         if st.button("✨ Refine This Certificate", key=f"refine_{i}") and comment.strip():
-    new_text = refine_commendation(name, title, org, comment)
-    if new_text:
-        cert["Certificate_Text"] = new_text
-        if f"text_{i}" in st.session_state:
-            st.session_state[f"text_{i}_refined"] = new_text
-        st.success("Commendation refined.")
-    new_text = refine_commendation(name, title, org, comment)
-    if new_text:
-        cert["Certificate_Text"] = new_text
-        if f"text_{i}" in st.session_state:
-            st.session_state[f"text_{i}_refined"] = new_text
-        st.success("Commendation refined.")
+    
+    
+    
 
         cert.update({"Certificate_Text": st.session_state.get(f"text_{i}_refined", text),
             "Formatted_Date": cert["Formatted_Date"],
