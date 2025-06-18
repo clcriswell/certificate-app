@@ -97,8 +97,15 @@ def extract_event_date(text):
     return None
 
 def determine_name_font_size(name: str) -> int:
-    """Return the optimal font size for the name."""
-    return NAME_MAX_SIZE
+    """Return a font size between NAME_MIN_SIZE and NAME_MAX_SIZE based on length."""
+    length = len(name)
+    if length <= 18:
+        return NAME_MAX_SIZE
+    if length >= NAME_MAX_CHARS:
+        return NAME_MIN_SIZE
+    ratio = (length - 18) / (NAME_MAX_CHARS - 18)
+    size = NAME_MAX_SIZE - ratio * (NAME_MAX_SIZE - NAME_MIN_SIZE)
+    return int(round(size))
 
 def determine_title_font_size(title: str) -> int:
     """Return the optimal font size for the title."""
@@ -329,7 +336,7 @@ Return ONLY valid JSON.
             "Tone_Category": "📝",
             "possible_split": parsed.get("possible_split", False),
             "alternatives": parsed.get("alternatives", {}),
-            "Name_Size": NAME_MAX_SIZE,
+            "Name_Size": determine_name_font_size(name),
             "Title_Size": TITLE_MAX_SIZE if format_display_title(title, org).strip() else 0,
             "Text_Size": TEXT_MAX_SIZE,
             "Date_Size": 12
@@ -624,7 +631,7 @@ for i, cert in enumerate(cert_rows, 1):
         )
         lines = text.splitlines()[:TEXT_MAX_LINES]
         text = "\n".join(lines)
-        name_size = NAME_MAX_SIZE
+        name_size = determine_name_font_size(name)
         display_title = format_display_title(title, org)
         title_size = TITLE_MAX_SIZE if display_title.strip() else 0
         text_size = TEXT_MAX_SIZE
@@ -637,7 +644,7 @@ for i, cert in enumerate(cert_rows, 1):
         cert["Title"] = title
         cert["Organization"] = org
         cert["Certificate_Text"] = text
-        cert["Name_Size"] = NAME_MAX_SIZE
+        cert["Name_Size"] = name_size
         cert["Title_Size"] = TITLE_MAX_SIZE if display_title.strip() else 0
         cert["Text_Size"] = TEXT_MAX_SIZE
         cert["Date_Size"] = date_size
@@ -649,7 +656,7 @@ for i, cert in enumerate(cert_rows, 1):
                 try:
                     apply_global_comment([cert], global_comment)
                     regenerate_certificate(cert, global_comment, indiv_comment)
-                    cert["Name_Size"] = NAME_MAX_SIZE
+                    cert["Name_Size"] = determine_name_font_size(cert["Name"])
                     cert["Title_Size"] = TITLE_MAX_SIZE if format_display_title(cert["Title"], cert["Organization"]).strip() else 0
                 except Exception as e:
                     st.error(str(e))
@@ -715,7 +722,7 @@ def generate_word_certificates(entries):
         p_spacer.paragraph_format.space_before = Pt(225)  # 3.5" after 1" margin
         p_spacer.add_run(" ").font.size = Pt(12)
 
-        name_size = NAME_MAX_SIZE
+        name_size = determine_name_font_size(entry["Name"])
         display_title = format_display_title(entry["Title"], entry["Organization"])
         title_size = TITLE_MAX_SIZE if display_title.strip() else 0
         text_size = TEXT_MAX_SIZE
@@ -800,7 +807,7 @@ def generate_pdf_certificates(entries):
         if i > 0:
             c.showPage()
 
-        name_size = NAME_MAX_SIZE
+        name_size = determine_name_font_size(entry["Name"])
         display_title = format_display_title(entry["Title"], entry["Organization"])
         title_size = TITLE_MAX_SIZE if display_title.strip() else 0
         text_size = TEXT_MAX_SIZE
