@@ -1,18 +1,26 @@
-# Certificate Generator (Streamlit + GPT-4o)
+# LegAid – Certificate Generator
 
-This version uses `pdfminer.six` for stable PDF text extraction on Streamlit Cloud.
-You can also upload text, Word, Excel, CSV, and image files. Images are processed using OCR via Tesseract (make sure the `tesseract` binary is installed).
+The certificate generator is now part of **LegAid**, a multi‑page Streamlit application.
+It still relies on `pdfminer.six` for stable PDF text extraction and supports text, Word, Excel,
+CSV and image uploads. Images are processed using OCR via Tesseract (ensure the
+`tesseract` binary is installed).
+
+Run the entire suite with:
+
+```bash
+streamlit run LegAid/app.py
+```
 
 ## 🚀 How to Deploy
 
 1. Upload to GitHub
 2. Go to [streamlit.io/cloud](https://streamlit.io/cloud) → New App
-3. Choose `app.py` and connect your repo
+3. Choose `LegAid/app.py` and connect your repo
 4. In **Settings → Secrets**, add:
    ```
    OPENAI_API_KEY = "sk-..."
    ```
-5. Done!
+5. Done! Launch the app and select **Certificate Generator** from the sidebar.
 
 ## 📝 Certificate Extraction Guidelines
 
