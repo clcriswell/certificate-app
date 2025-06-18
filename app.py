@@ -225,6 +225,7 @@ Each certificate must include:
 - title
 - organization (if applicable)
 - date_raw (or fallback to event date)
+- category: short (2–3 word) description of the recognition type
 - commendation: 2–3 sentence message starting with "On behalf of the California State Legislature..." that honors their work and ends with well wishes
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
@@ -251,6 +252,7 @@ Return ONLY valid JSON.
         name = parsed.get("name") or "Recipient"
         title = parsed.get("title") or ""
         org = parsed.get("organization") or ""
+        category = parsed.get("category", "General")
         commendation = parsed.get("commendation") or ""
 
         if title.strip().lower() == "certificate of recognition":
@@ -265,6 +267,7 @@ Return ONLY valid JSON.
             "Organization": org,
             "Certificate_Text": commendation,
             "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+            "Category": category,
             "Tone_Category": "📝",
             "possible_split": parsed.get("possible_split", False),
             "alternatives": parsed.get("alternatives", {}),
@@ -434,6 +437,30 @@ else:
 for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
+
+# Allow user to apply a single commendation to all certificates in a category
+categories = sorted({c.get("Category", "General") for c in cert_rows})
+if "uniform_texts" not in st.session_state:
+    st.session_state.uniform_texts = {cat: "" for cat in categories}
+
+st.subheader("🏷️ Uniform Commendation by Category")
+st.write(
+    "Optionally generate or enter a commendation that will be applied to every certificate in the same category."
+)
+for cat in categories:
+    key_text = f"uniform_text_{cat}"
+    st.session_state.uniform_texts.setdefault(cat, "")
+    st.session_state.uniform_texts[cat] = st.text_area(
+        f"{cat} Commendation", value=st.session_state.uniform_texts[cat], key=key_text
+    )
+
+if st.button("Apply Uniform Commendations", key="apply_uniform"):
+    for cert in cert_rows:
+        text = st.session_state.uniform_texts.get(cert.get("Category", "General"), "").strip()
+        if text:
+            cert["Certificate_Text"] = text
+    st.session_state.cert_rows = cert_rows
+    st.success("Uniform commendations applied.")
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
