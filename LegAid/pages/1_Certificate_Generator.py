@@ -429,6 +429,31 @@ def apply_global_comment(cert_rows, global_comment):
 
     return cert_rows
 
+def improve_certificate(cert):
+    """Use GPT to suggest improvements for a manually entered certificate."""
+    system = (
+        "You suggest concise improvements for a certificate entry. "
+        f"Name must be <= {NAME_MAX_CHARS} characters. "
+        f"Title must be <= {TITLE_MAX_CHARS} characters. "
+        f"Certificate text must be <= {TEXT_MAX_CHARS} characters and {TEXT_MAX_LINES} lines. "
+        "Return ONLY valid JSON with keys name, title, organization, certificate_text."
+    )
+    user_msg = (
+        f"Name: {cert['Name']}\n"
+        f"Title: {cert['Title']}\n"
+        f"Organization: {cert['Organization']}\n"
+        f"Certificate Text: {cert['Certificate_Text']}\n\n"
+        "Provide improved values."
+    )
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
+        temperature=0
+    )
+    content = response.choices[0].message.content
+    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    return json.loads(cleaned)
+
 def split_certificate(index):
     """Split a certificate with multiple names into separate entries."""
     cert = st.session_state.cert_rows[index]
@@ -460,39 +485,147 @@ st.title("📁 CertCreate")
 if "started" not in st.session_state:
     st.session_state.started = False
 
+if "start_mode" not in st.session_state:
+    st.session_state.start_mode = None
+
 if not st.session_state.started:
-    uploaded_file = st.file_uploader(
-        "Upload file (optional)",
-        type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"],
-    )
-    text_input = st.text_area(
-        "Or paste certificate request text here", height=300
-    )
-    use_uniform = st.checkbox(
-        "Keep Certificate Text Uniformed",
-        value=st.session_state.get("use_uniform", False),
-        key="uniform_start",
-    )
+    if st.session_state.start_mode is None:
+        st.subheader("Choose how to begin")
+        col1, col2, col3 = st.columns(3)
+        if col1.button("Begin from File"):
+            st.session_state.start_mode = "file"
+            safe_rerun()
+        if col2.button("Paste a Request"):
+            st.session_state.start_mode = "paste"
+            safe_rerun()
+        if col3.button("Create Your Own"):
+            st.session_state.start_mode = "manual"
+            safe_rerun()
+        st.stop()
 
-    if st.button("▶️ Begin"):
-        if not uploaded_file and not text_input.strip():
-            st.warning("Please upload a file or paste request text before beginning.")
-        else:
-            if uploaded_file:
-                pdf_text, source_type = read_uploaded_file(uploaded_file)
+    if st.session_state.start_mode == "file":
+        uploaded_file = st.file_uploader(
+            "Upload file", type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"], key="file_upload"
+        )
+        guidance = st.text_area("Extra Guidance (optional)", key="guidance_file")
+        use_uniform = st.checkbox(
+            "Keep Certificate Text Uniformed",
+            value=st.session_state.get("use_uniform", False),
+            key="uniform_start_file",
+        )
+        if st.button("▶️ Begin", key="begin_file"):
+            if not uploaded_file:
+                st.warning("Please upload a file before beginning.")
             else:
-                pdf_text = text_input
-                source_type = "pasted"
+                pdf_text, source_type = read_uploaded_file(uploaded_file)
+                st.session_state.pdf_text = pdf_text
+                st.session_state.source_type = source_type
+                st.session_state.guidance = guidance
+                st.session_state.use_uniform = use_uniform
 
-            st.session_state.pdf_text = pdf_text
-            st.session_state.source_type = source_type
-            st.session_state.use_uniform = use_uniform
+                auto_date_raw = extract_event_date(pdf_text)
+                st.session_state.event_date_raw = auto_date_raw or ""
+                st.session_state.started = True
+                safe_rerun()
+        st.stop()
 
-            auto_date_raw = extract_event_date(pdf_text)
-            st.session_state.event_date_raw = auto_date_raw or ""
+    if st.session_state.start_mode == "paste":
+        text_input = st.text_area("Paste certificate request text here", height=300, key="paste_text")
+        guidance = st.text_area("Extra Guidance (optional)", key="guidance_paste")
+        use_uniform = st.checkbox(
+            "Keep Certificate Text Uniformed",
+            value=st.session_state.get("use_uniform", False),
+            key="uniform_start_paste",
+        )
+        if st.button("▶️ Begin", key="begin_paste"):
+            if not text_input.strip():
+                st.warning("Please paste request text before beginning.")
+            else:
+                st.session_state.pdf_text = text_input
+                st.session_state.source_type = "pasted"
+                st.session_state.guidance = guidance
+                st.session_state.use_uniform = use_uniform
+
+                auto_date_raw = extract_event_date(text_input)
+                st.session_state.event_date_raw = auto_date_raw or ""
+                st.session_state.started = True
+                safe_rerun()
+        st.stop()
+
+    if st.session_state.start_mode == "manual":
+        if "manual_certs" not in st.session_state:
+            st.session_state.manual_certs = [
+                {"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""}
+            ]
+
+        manual_certs = st.session_state.manual_certs
+        for i, cert in enumerate(manual_certs):
+            st.subheader(f"Certificate {i+1}")
+            cert["Name"] = st.text_input("Name", value=cert["Name"], key=f"m_name_{i}", max_chars=NAME_MAX_CHARS)
+            cert["Title"] = st.text_input("Title", value=cert["Title"], key=f"m_title_{i}", max_chars=TITLE_MAX_CHARS)
+            cert["Organization"] = st.text_input("Organization", value=cert["Organization"], key=f"m_org_{i}")
+            cert["Certificate_Text"] = st.text_area(
+                "Certificate Text", value=cert["Certificate_Text"], key=f"m_text_{i}", height=100, max_chars=TEXT_MAX_CHARS
+            )
+            cert["Date"] = st.text_input(
+                "Date (e.g., May 31, 2024)", value=cert.get("Date", ""), key=f"m_date_{i}"
+            )
+
+            if st.button("Improve", key=f"improve_{i}"):
+                improved = improve_certificate(cert)
+                st.session_state[f"improved_{i}"] = improved
+                safe_rerun()
+
+            if f"improved_{i}" in st.session_state:
+                st.markdown("##### Suggested improvements")
+                st.json(st.session_state[f"improved_{i}"])
+                col_a, col_b = st.columns(2)
+                if col_a.button("Apply Improvements", key=f"apply_{i}"):
+                    for k, v in st.session_state[f"improved_{i}"].items():
+                        if k == "name":
+                            cert["Name"] = v
+                        elif k == "title":
+                            cert["Title"] = v
+                        elif k == "organization":
+                            cert["Organization"] = v
+                        elif k in {"certificate_text", "commendation"}:
+                            cert["Certificate_Text"] = v
+                    del st.session_state[f"improved_{i}"]
+                    safe_rerun()
+                if col_b.button("Keep Original", key=f"keep_{i}"):
+                    del st.session_state[f"improved_{i}"]
+                    safe_rerun()
+
+        if st.button("Add Another"):
+            manual_certs.append({"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""})
+            safe_rerun()
+
+        if st.button("Complete"):
+            st.session_state.cert_rows = [
+                {
+                    "Name": c["Name"],
+                    "Title": c["Title"],
+                    "Organization": c["Organization"],
+                    "Certificate_Text": c["Certificate_Text"] or enhanced_commendation(c["Name"], c["Title"], c["Organization"]),
+                    "Formatted_Date": format_certificate_date(c.get("Date") or datetime.today().strftime("%B %d, %Y")),
+                    "Category": "General",
+                    "Tone_Category": "📝",
+                    "possible_split": False,
+                    "alternatives": {},
+                    "Name_Size": determine_name_font_size(c["Name"]),
+                    "Title_Size": TITLE_MAX_SIZE if format_display_title(c["Title"], c["Organization"]).strip() else 0,
+                    "Text_Size": TEXT_MAX_SIZE,
+                    "Date_Size": 12,
+                    "approved": True,
+                }
+                for c in manual_certs
+            ]
+            st.session_state.pdf_text = ""
+            st.session_state.source_type = "manual"
+            st.session_state.guidance = ""
             st.session_state.started = True
             safe_rerun()
-    st.stop()
+        st.stop()
 
 uploaded_file = None
 text_input = None
@@ -510,6 +643,7 @@ if st.session_state.started:
             "event_date_raw",
             "formatted_event_date",
             "use_uniform",
+            "guidance",
         ]:
             if key in st.session_state:
                 del st.session_state[key]
@@ -543,8 +677,11 @@ for idx, ex in enumerate(examples, 1):
 
 if "parsed_entries" not in st.session_state:
     try:
+        combined_text = pdf_text
+        if st.session_state.get("guidance"):
+            combined_text += f"\n\nUser guidance:\n{st.session_state['guidance']}"
         parsed_entries, cert_rows, uniform_template = extract_certificates(
-            pdf_text,
+            combined_text,
             event_date_raw,
             uniform=use_uniform,
         )
