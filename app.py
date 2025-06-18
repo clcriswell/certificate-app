@@ -393,7 +393,11 @@ def split_certificate(index):
     cert = st.session_state.cert_rows[index]
     alt_names = cert.get("alternatives", {}).get("name")
     if not alt_names:
-        parts = [n.strip() for n in cert.get("Name", "").replace("&", " and ").split(" and ")]
+        name_field = cert.get("Name", "")
+        parts = [
+            n.strip()
+            for n in re.split(r"\s*(?:and|&)\s*", name_field, flags=re.IGNORECASE)
+        ]
         alt_names = [p for p in parts if p]
     if len(alt_names) < 2:
         return
