@@ -758,12 +758,18 @@ def generate_pdf_certificates(entries):
         if i > 0:
             story.append(PageBreak())
 
-        story.append(Spacer(1, 3.5 * inch))
+        # Match Word layout: name block ~4.125" from the top of the page
+        story.append(Spacer(1, 3.125 * inch))
 
         name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
         display_title = format_display_title(entry["Title"], entry["Organization"])
         if display_title.strip():
-            title_size = determine_title_font_size(display_title)
+            # Mirror Word dynamic sizing logic so long titles don't overflow
+            title_size = max(10, round(name_size / 2))
+            safe_title = determine_title_font_size(display_title)
+            while title_size > safe_title and name_size > 20:
+                name_size -= 2
+                title_size = round(name_size / 2)
             text_size = max(8, round(title_size * 0.75))
         else:
             title_size = 0
@@ -798,7 +804,8 @@ def generate_pdf_certificates(entries):
         )
         story.append(Paragraph(entry["Certificate_Text"].replace("\n", "<br />"), text_style))
 
-        story.append(Spacer(1, 0.5 * inch))
+        # Spacing before the date block (~0.35")
+        story.append(Spacer(1, 0.35 * inch))
 
         date_style = ParagraphStyle(
             "date",
@@ -809,7 +816,8 @@ def generate_pdf_certificates(entries):
         for line in entry["Formatted_Date"].split("\n"):
             story.append(Paragraph(line, date_style))
 
-        story.append(Spacer(1, 1.25 * inch))
+        # Space before the signature block (~0.55")
+        story.append(Spacer(1, 0.55 * inch))
 
         sig_style_small = ParagraphStyle(
             "sig",
