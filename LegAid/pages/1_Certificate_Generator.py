@@ -731,20 +731,24 @@ def generate_word_certificates(entries):
             sig.runs[0].font.size = Pt(size)
     return doc
 
-if st.button("📄 Generate Word Certificates"):
-    approved_entries = [c for c in final_cert_rows if c.get("approved")]
-    if not approved_entries:
-        st.error("No certificates were approved.")
-    else:
-        log_certificates(parsed_entries, approved_entries, pdf_text, source=source_type, global_comment=global_comment)
-        with st.spinner("Generating Word document..."):
-            doc = generate_word_certificates(approved_entries)
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
-            doc.save(tmp.name)
-            tmp.seek(0)
-            st.download_button(
-                label="⬇️ Download Word Certificates",
-                data=tmp.read(),
-                file_name="Certificates.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
+approved_entries = [c for c in final_cert_rows if c.get("approved")]
+if not approved_entries:
+    st.error("No certificates were approved.")
+else:
+    doc = generate_word_certificates(approved_entries)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+    doc.save(tmp.name)
+    tmp.seek(0)
+    if st.download_button(
+        label="CreateCert",
+        data=tmp.read(),
+        file_name="Certificates.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ):
+        log_certificates(
+            parsed_entries,
+            approved_entries,
+            pdf_text,
+            source=source_type,
+            global_comment=global_comment,
+        )
