@@ -15,13 +15,7 @@ from docx.enum.section import WD_SECTION
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    PageBreak,
-)
+from reportlab.pdfgen import canvas
 import pandas as pd
 from PIL import Image
 import pytesseract
@@ -744,98 +738,93 @@ def generate_word_certificates(entries):
 
 def generate_pdf_certificates(entries):
     buffer = BytesIO()
-    pdf = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=0.75 * inch,
-        leftMargin=0.75 * inch,
-        topMargin=1 * inch,
-        bottomMargin=0.25 * inch,
-    )
+    c = canvas.Canvas(buffer, pagesize=letter)
+    page_width, page_height = letter
+    left_margin = right_margin = 0.75 * inch
 
-    story = []
+    def wrap_text(text, font_name, font_size, max_width):
+        lines = []
+        for raw in text.split("\n"):
+            words = raw.split()
+            current = ""
+            for word in words:
+                test = f"{current} {word}".strip()
+                if c.stringWidth(test, font_name, font_size) <= max_width:
+                    current = test
+                else:
+                    if current:
+                        lines.append(current)
+                    current = word
+            if current:
+                lines.append(current)
+        return lines
+
     for i, entry in enumerate(entries):
         if i > 0:
-            story.append(PageBreak())
+            c.showPage()
 
-        # Match Word layout: name block ~4.125" from the top of the page
-        story.append(Spacer(1, 3.125 * inch))
+        name_len = len(entry["Name"])
+        if name_len <= 12:
+            name_size = 36
+        elif name_len <= 18:
+            name_size = 32
+        elif name_len <= 24:
+            name_size = 30
+        else:
+            name_size = 28
 
-        name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
         display_title = format_display_title(entry["Title"], entry["Organization"])
         if display_title.strip():
-            # Mirror Word dynamic sizing logic so long titles don't overflow
-            title_size = max(10, round(name_size / 2))
-            safe_title = determine_title_font_size(display_title)
-            while title_size > safe_title and name_size > 20:
-                name_size -= 2
-                title_size = round(name_size / 2)
-            text_size = max(8, round(title_size * 0.75))
+            t_len = len(display_title)
+            if t_len <= 20:
+                title_size = 18
+            elif t_len <= 30:
+                title_size = 16
+            elif t_len <= 36:
+                title_size = 14
+            else:
+                title_size = 12
+            text_size = max(12, round(title_size * 0.75))
         else:
             title_size = 0
-            text_size = max(8, round(name_size / 2))
+            text_size = max(12, round(name_size / 2))
+        text_size = min(14, text_size)
+        date_size = 12
 
-        date_size = entry.get("Date_Size", 12)
+        center_x = page_width / 2
+        avail_width = page_width - left_margin - right_margin
 
-        name_style = ParagraphStyle(
-            "name",
-            alignment=1,
-            fontName="Times-Bold",
-            fontSize=name_size,
-            spaceAfter=3,
-        )
-        story.append(Paragraph(entry["Name"], name_style))
+        c.setFont("Times-Bold", name_size)
+        c.drawCentredString(center_x, page_height - 4.5 * inch, entry["Name"])
 
         if display_title.strip():
-            title_style = ParagraphStyle(
-                "title",
-                alignment=1,
-                fontName="Times-Bold",
-                fontSize=title_size,
-            )
-            story.append(Paragraph(display_title, title_style))
+            c.setFont("Times-Bold", title_size)
+            y = page_height - (4.5 + 0.25) * inch
+            for line in wrap_text(display_title, "Times-Bold", title_size, avail_width):
+                c.drawCentredString(center_x, y, line)
+                y -= title_size * 1.2
 
-        text_style = ParagraphStyle(
-            "text",
-            alignment=1,
-            fontName="Times-Roman",
-            fontSize=text_size,
-            spaceBefore=10,
-        )
-        story.append(Paragraph(entry["Certificate_Text"].replace("\n", "<br />"), text_style))
+        c.setFont("Times-Roman", text_size)
+        y = page_height - 5.25 * inch
+        for line in wrap_text(entry["Certificate_Text"], "Times-Roman", text_size, avail_width):
+            c.drawCentredString(center_x, y, line)
+            y -= text_size * 1.2
 
-        # Spacing before the date block (~0.35")
-        story.append(Spacer(1, 0.35 * inch))
-
-        date_style = ParagraphStyle(
-            "date",
-            alignment=1,
-            fontName="Times-Roman",
-            fontSize=date_size,
-        )
+        c.setFont("Times-Roman", date_size)
+        y = page_height - 8.25 * inch
         for line in entry["Formatted_Date"].split("\n"):
-            story.append(Paragraph(line, date_style))
+            c.drawCentredString(center_x, y, line)
+            y -= date_size * 1.2
 
-        # Space before the signature block (~0.55")
-        story.append(Spacer(1, 0.55 * inch))
+        right_x = page_width - right_margin
+        c.setFont("Times-Roman", 12)
+        y = page_height - 9.5 * inch
+        c.drawRightString(right_x, y, "_____________________________________")
+        c.setFont("Times-Roman", 14)
+        c.drawRightString(right_x, y - 14 * 1.2, "Stan Ellis")
+        c.drawRightString(right_x, y - 14 * 2.4, "Assemblyman, 32nd District")
 
-        sig_style_small = ParagraphStyle(
-            "sig",
-            alignment=2,
-            fontName="Times-Roman",
-            fontSize=12,
-        )
-        sig_style_large = ParagraphStyle(
-            "sig_large",
-            alignment=2,
-            fontName="Times-Roman",
-            fontSize=14,
-        )
-        story.append(Paragraph("_____________________________________", sig_style_small))
-        story.append(Paragraph("Stan Ellis", sig_style_large))
-        story.append(Paragraph("Assemblyman, 32nd District", sig_style_large))
-
-    pdf.build(story)
+    c.save()
     buffer.seek(0)
     return buffer.read()
 
