@@ -26,16 +26,16 @@ streamlit run LegAid/app.py
 
 When extracting certificate information, the app uses GPT to parse titles and organizations from event text. If an organization is hosting the event, its name should **not** be placed in the Title block for certificates associated with the host. Only include "Title of Organization" when an individual or group from that organization is being recognized by the host organization.
 
-## ✨ Global Comments
+## ✨ Edit All
 
-The **Global Comments** box can modify any certificate field. For example:
+The **Edit All** box can modify any certificate field. For example:
 
 - `Organization name for all certificates is "Acme Corp"` will set the organization on every certificate to "Acme Corp".
 - `Use organization instead of title` copies the organization value into the Title field for each certificate.
 - `Replace 'Officer' in title with organization` swaps the word "Officer" in every title with the certificate's organization.
 
-After entering a global comment, click **Regenerate All Certificates** to apply the changes.
+After entering a comment, click **Regenerate All Certificates** to apply the changes.
 
-## 🏷️ Uniform Commendation
+## 🏷️ Uniform Certificate Text
 
-Enable the **Use one commendation for all certificates** checkbox before generating certificates if you want identical language across every entry. The app will ask GPT to create a single commendation template and automatically fill in each certificate's name, title, and organization.
+Enable the **Keep Certificate Text Uniformed** checkbox before generating certificates if you want identical language across every entry. The app will ask GPT to create a single certificate text template and automatically fill in each certificate's name, title, and organization.

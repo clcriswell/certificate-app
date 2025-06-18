@@ -309,7 +309,7 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     """Use reviewer comments to refine an existing certificate via the LLM."""
     instructions = []
     if global_comment.strip():
-        instructions.append(f"Global comment: {global_comment.strip()}")
+        instructions.append(f"Edit All comment: {global_comment.strip()}")
     if reviewer_comment.strip():
         instructions.append(f"Reviewer comment: {reviewer_comment.strip()}")
 
@@ -414,7 +414,7 @@ def split_certificate(index):
     st.session_state.expand_after_split = [index, index + 1]
 
 st.set_page_config(layout="centered")
-st.title("📁 Certificate Review Assistant")
+st.title("📁 CertCreations")
 
 if "started" not in st.session_state:
     st.session_state.started = False
@@ -428,7 +428,7 @@ if not st.session_state.started:
         "Or paste certificate request text here", height=300
     )
     use_uniform = st.checkbox(
-        "Use one commendation for all certificates",
+        "Keep Certificate Text Uniformed",
         value=st.session_state.get("use_uniform", False),
         key="uniform_start",
     )
@@ -526,15 +526,16 @@ for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
 
-# Display the uniform commendation template when enabled
+
+# Display the uniform certificate text template when enabled
 if use_uniform and uniform_template:
-    st.subheader("🏷️ Uniform Commendation")
+    st.subheader("🏷️ Uniform Certificate Text")
     st.info(uniform_template)
 
-st.subheader("💬 Global Comments")
+st.subheader("💬 Edit All")
 global_comment = st.text_area(
     "Optional: Enter general comments, tone guidance, or feedback that applies to all certificates.",
-    placeholder="e.g., 'Make all commendations sound more formal.'",
+    placeholder="e.g., 'Make all certificates sound more formal.'",
     key="global_comment"
 )
 
@@ -549,7 +550,7 @@ if st.button("🔄 Regenerate All Certificates", key="regen_all"):
             new_rows.append(cert)
     st.session_state.cert_rows = new_rows
     cert_rows = new_rows
-    st.success("Certificates updated using global comment.")
+    st.success("Certificates updated using Edit All comment.")
 
 st.subheader("👁 Review, Edit, and Approve Each Certificate")
 final_cert_rows = []
@@ -570,7 +571,7 @@ for i, cert in enumerate(cert_rows, 1):
         name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
         title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
         org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
-        text = st.text_area("📜 Commendation", cert["Certificate_Text"], height=100, key=f"text_{i}")
+        text = st.text_area("📜 Certificate Text", cert["Certificate_Text"], height=100, key=f"text_{i}")
         name_size = determine_name_font_size(name)
         display_title = format_display_title(title, org)
         title_size = determine_title_font_size(display_title)
