@@ -817,30 +817,31 @@ def generate_pdf_certificates(entries):
         avail_width = page_width - left_margin - right_margin
 
         c.setFont("Times-Bold", name_size)
-        c.drawCentredString(center_x, page_height - 4.5 * inch, entry["Name"])
+        name_y = page_height - 5.0 * inch
+        c.drawCentredString(center_x, name_y, entry["Name"])
 
         if display_title.strip():
             c.setFont("Times-Bold", title_size)
-            y = page_height - (4.5 + 0.25) * inch
+            y = name_y - 0.25 * inch
             for line in wrap_text(display_title, "Times-Bold", title_size, avail_width):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
 
         c.setFont("Times-Roman", text_size)
-        y = page_height - 5.25 * inch
+        y = name_y - 0.5 * inch
         for line in wrap_text(entry["Certificate_Text"], "Times-Roman", text_size, avail_width):
             c.drawCentredString(center_x, y, line)
             y -= text_size * 1.2
 
         c.setFont("Times-Roman", date_size)
-        y = page_height - 8.25 * inch
+        y = page_height - 8.75 * inch
         for line in entry["Formatted_Date"].split("\n"):
             c.drawCentredString(center_x, y, line)
             y -= date_size * 1.2
 
         right_x = page_width - right_margin
         c.setFont("Times-Roman", 12)
-        y = page_height - 9.5 * inch
+        y = page_height - 10.0 * inch
         c.drawRightString(right_x, y, "_____________________________________")
         c.setFont("Times-Roman", 14)
         c.drawRightString(right_x, y - 14 * 1.2, "Stan Ellis")
