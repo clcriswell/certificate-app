@@ -1,11 +1,17 @@
 import streamlit as st
+from pathlib import Path
+import base64
 
 st.set_page_config(page_title="LegAid", page_icon="📜", layout="wide")
 
+logo_path = Path(__file__).parent / "Assets" / "MainLogo.png"
+with open(logo_path, "rb") as f:
+    encoded = base64.b64encode(f.read()).decode()
+
 st.markdown(
-    """
+    f"""
     <div style='text-align:center; padding:2rem 0;'>
-        <img src='./Assets/MainLogo.png' width='150' alt='LegAid logo'>
+        <img src='data:image/png;base64,{encoded}' width='150' alt='LegAid logo'>
         <h1 style='margin-bottom:0;'>LegAid</h1>
         <h4 style='margin-top:0; color: gray;'>Tools for Legislative Productivity</h4>
     </div>
