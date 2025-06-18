@@ -393,7 +393,11 @@ def split_certificate(index):
     cert = st.session_state.cert_rows[index]
     alt_names = cert.get("alternatives", {}).get("name")
     if not alt_names:
-        parts = [n.strip() for n in cert.get("Name", "").replace("&", " and ").split(" and ")]
+        name_field = cert.get("Name", "")
+        parts = [
+            n.strip()
+            for n in re.split(r"\s*(?:and|&)\s*", name_field, flags=re.IGNORECASE)
+        ]
         alt_names = [p for p in parts if p]
     if len(alt_names) < 2:
         return
@@ -407,6 +411,7 @@ def split_certificate(index):
     st.session_state.cert_rows = (
         st.session_state.cert_rows[:index] + new_certs + st.session_state.cert_rows[index+1:]
     )
+    st.session_state.expand_after_split = [index, index + 1]
 
 st.set_page_config(layout="centered")
 st.title("📁 Certificate Review Assistant")
@@ -515,6 +520,8 @@ else:
     cert_rows = st.session_state.cert_rows
     uniform_template = st.session_state.get("uniform_template", "")
 
+expanded_indices = st.session_state.pop("expand_after_split", [])
+
 for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
@@ -549,7 +556,8 @@ final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
     display_title = format_display_title(cert['Title'], cert['Organization'])
-    with st.expander(f"📜 {cert['Name']} – {display_title}"):
+    expand_flag = i-1 in expanded_indices
+    with st.expander(f"📜 {cert['Name']} – {display_title}", expanded=expand_flag):
 
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
