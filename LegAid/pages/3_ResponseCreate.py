@@ -1,8 +1,11 @@
 import streamlit as st
 from utils.shared_functions import example_helper
+from utils.navigation import render_sidebar, render_logo
 
 
-st.set_page_config(layout="centered")
+st.set_page_config(layout="centered", initial_sidebar_state="expanded")
+render_sidebar()
+render_logo()
 st.title("📬 ResponseCreate")
 
 
