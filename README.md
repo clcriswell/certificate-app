@@ -4,6 +4,7 @@ The certificate generator is now part of **LegAid**, a multi‑page Streamlit ap
 It still relies on `pdfminer.six` for stable PDF text extraction and supports text, Word, Excel,
 CSV and image uploads. Images are processed using OCR via Tesseract (ensure the
 `tesseract` binary is installed).
+Generated certificates can be downloaded as Word documents or as PDFs.
 
 Run the entire suite with:
 

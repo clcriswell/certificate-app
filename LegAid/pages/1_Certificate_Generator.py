@@ -12,6 +12,16 @@ from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_SECTION
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    PageBreak,
+)
 import pandas as pd
 from PIL import Image
 import pytesseract
@@ -718,7 +728,7 @@ def generate_word_certificates(entries):
         sig_spacer.paragraph_format.space_before = Pt(40)
         sig_spacer.add_run(" ").font.size = Pt(12)
 
-        for line, size in [
+    for line, size in [
             ("_____________________________________", 12),
             ("Stan Ellis", 14),
             ("Assemblyman, 32nd District", 14)
@@ -731,19 +741,124 @@ def generate_word_certificates(entries):
             sig.runs[0].font.size = Pt(size)
     return doc
 
+
+def generate_pdf_certificates(entries):
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        topMargin=1 * inch,
+        bottomMargin=0.25 * inch,
+    )
+
+    story = []
+    for i, entry in enumerate(entries):
+        if i > 0:
+            story.append(PageBreak())
+
+        story.append(Spacer(1, 3.5 * inch))
+
+        name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
+        display_title = format_display_title(entry["Title"], entry["Organization"])
+        if display_title.strip():
+            title_size = determine_title_font_size(display_title)
+            text_size = max(8, round(title_size * 0.75))
+        else:
+            title_size = 0
+            text_size = max(8, round(name_size / 2))
+
+        date_size = entry.get("Date_Size", 12)
+
+        name_style = ParagraphStyle(
+            "name",
+            alignment=1,
+            fontName="Times-Bold",
+            fontSize=name_size,
+            spaceAfter=3,
+        )
+        story.append(Paragraph(entry["Name"], name_style))
+
+        if display_title.strip():
+            title_style = ParagraphStyle(
+                "title",
+                alignment=1,
+                fontName="Times-Bold",
+                fontSize=title_size,
+            )
+            story.append(Paragraph(display_title, title_style))
+
+        text_style = ParagraphStyle(
+            "text",
+            alignment=1,
+            fontName="Times-Roman",
+            fontSize=text_size,
+            spaceBefore=10,
+        )
+        story.append(Paragraph(entry["Certificate_Text"].replace("\n", "<br />"), text_style))
+
+        story.append(Spacer(1, 0.5 * inch))
+
+        date_style = ParagraphStyle(
+            "date",
+            alignment=1,
+            fontName="Times-Roman",
+            fontSize=date_size,
+        )
+        for line in entry["Formatted_Date"].split("\n"):
+            story.append(Paragraph(line, date_style))
+
+        story.append(Spacer(1, 1.25 * inch))
+
+        sig_style_small = ParagraphStyle(
+            "sig",
+            alignment=2,
+            fontName="Times-Roman",
+            fontSize=12,
+        )
+        sig_style_large = ParagraphStyle(
+            "sig_large",
+            alignment=2,
+            fontName="Times-Roman",
+            fontSize=14,
+        )
+        story.append(Paragraph("_____________________________________", sig_style_small))
+        story.append(Paragraph("Stan Ellis", sig_style_large))
+        story.append(Paragraph("Assemblyman, 32nd District", sig_style_large))
+
+    pdf.build(story)
+    buffer.seek(0)
+    return buffer.read()
+
 approved_entries = [c for c in final_cert_rows if c.get("approved")]
 if not approved_entries:
     st.error("No certificates were approved.")
 else:
     doc = generate_word_certificates(approved_entries)
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
-    doc.save(tmp.name)
-    tmp.seek(0)
+    tmp_docx = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+    doc.save(tmp_docx.name)
+    tmp_docx.seek(0)
     if st.download_button(
         label="CreateCert",
-        data=tmp.read(),
+        data=tmp_docx.read(),
         file_name="Certificates.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ):
+        log_certificates(
+            parsed_entries,
+            approved_entries,
+            pdf_text,
+            source=source_type,
+            global_comment=global_comment,
+        )
+
+    pdf_bytes = generate_pdf_certificates(approved_entries)
+    if st.download_button(
+        label="CreateCert PDF",
+        data=pdf_bytes,
+        file_name="Certificates.pdf",
+        mime="application/pdf",
     ):
         log_certificates(
             parsed_entries,
