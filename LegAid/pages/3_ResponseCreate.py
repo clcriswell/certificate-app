@@ -6,7 +6,7 @@ from utils.navigation import render_sidebar, render_logo
 st.set_page_config(layout="centered", initial_sidebar_state="expanded")
 render_sidebar()
 render_logo()
-st.title("📬 ResponseCreate")
+st.title("📧 ResponseCreate")
 
 
 def render_constituent_response():

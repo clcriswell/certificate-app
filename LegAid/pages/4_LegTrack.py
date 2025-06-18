@@ -7,7 +7,7 @@ from utils.navigation import render_sidebar, render_logo
 st.set_page_config(layout="centered", initial_sidebar_state="expanded")
 render_sidebar()
 render_logo()
-st.title("📚 LegTrack")
+st.title("🔍 LegTrack")
 
 
 def render_knowledge_center():

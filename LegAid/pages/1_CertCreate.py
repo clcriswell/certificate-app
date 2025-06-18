@@ -68,7 +68,6 @@ def reset_request():
             del st.session_state[k]
     st.session_state.started = False
     st.session_state.start_mode = None
-    safe_rerun()
 
 def format_certificate_date(raw_date_str):
     try:
@@ -356,6 +355,8 @@ Return ONLY valid JSON.
 
     if uniform:
         template_text = data.get("template", "")
+        if "wish you the best" not in template_text.lower():
+            template_text = template_text.rstrip(" .") + " Wish you the best."
         parsed_entries = data.get("certificates", [])
     else:
         parsed_entries = data
@@ -535,12 +536,11 @@ def split_certificate(index):
 st.set_page_config(layout="centered", initial_sidebar_state="expanded")
 render_sidebar(on_certcreate=reset_request)
 render_logo()
-st.title("📁 CertCreate")
+st.title("🗂️ CertCreate")
 
 st.markdown(
     """
     <style>
-    .cert-block{border:1px solid #ddd;padding:1rem;margin-bottom:1rem;border-radius:8px;}
     textarea, input[type=text]{border:2px solid #555 !important;}
     </style>
     """,
@@ -627,7 +627,6 @@ if not st.session_state.started:
 
         manual_certs = st.session_state.manual_certs
         for i, cert in enumerate(manual_certs):
-            st.markdown('<div class="cert-block">', unsafe_allow_html=True)
             st.subheader(f"Certificate {i+1}")
             cert["Name"] = st.text_input("Name", value=cert["Name"], key=f"m_name_{i}", max_chars=NAME_MAX_CHARS)
             cert["Title"] = st.text_input("Title", value=cert["Title"], key=f"m_title_{i}", max_chars=TITLE_MAX_CHARS)
@@ -645,7 +644,13 @@ if not st.session_state.started:
                 safe_rerun()
 
             if f"improved_{i}" in st.session_state:
-                st.markdown("##### Suggested improvements")
+                left, right = st.columns([3, 2])
+                with left:
+                    st.markdown("##### Suggested Improvements")
+                with right:
+                    c1, c2 = st.columns(2)
+                    apply_btn = c1.button("Apply Improvements", key=f"apply_{i}")
+                    keep_btn = c2.button("Keep Original", key=f"keep_{i}")
                 preview = certificate_preview_html(
                     st.session_state[f"improved_{i}"]["name"],
                     st.session_state[f"improved_{i}"]["title"],
@@ -653,8 +658,7 @@ if not st.session_state.started:
                     st.session_state[f"improved_{i}"]["certificate_text"],
                 )
                 st.markdown(preview, unsafe_allow_html=True)
-                col_a, col_b = st.columns(2)
-                if col_a.button("Apply Improvements", key=f"apply_{i}"):
+                if apply_btn:
                     for k, v in st.session_state[f"improved_{i}"].items():
                         if k == "name":
                             cert["Name"] = v
@@ -666,7 +670,7 @@ if not st.session_state.started:
                             cert["Certificate_Text"] = v
                     del st.session_state[f"improved_{i}"]
                     safe_rerun()
-                if col_b.button("Keep Original", key=f"keep_{i}"):
+                if keep_btn:
                     del st.session_state[f"improved_{i}"]
                     safe_rerun()
 
@@ -674,13 +678,8 @@ if not st.session_state.started:
                 if st.button("Remove", key=f"remove_{i}"):
                     manual_certs.pop(i)
                     safe_rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
 
-        col_add, col_complete = st.columns(2)
-        if col_add.button("Add Another"):
-            manual_certs.append({"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""})
-            safe_rerun()
-
+        col_complete = st.columns(1)[0]
         if col_complete.button("Complete"):
             st.session_state.cert_rows = [
                 {
@@ -784,8 +783,24 @@ for cert in cert_rows:
 
 # Display the uniform certificate text template when enabled
 if use_uniform and uniform_template:
-    st.subheader("🏷️ Uniform Certificate Text")
-    st.info(uniform_template)
+    st.subheader("Certificate Text")
+    uniform_edit = st.text_area(
+        "Certificate Text",
+        value=uniform_template,
+        key="uniform_template_edit",
+        height=100,
+    )
+    if st.button("Apply All"):
+        st.session_state.uniform_template = uniform_edit
+        for cert in cert_rows:
+            text = (
+                uniform_edit.replace("{name}", cert["Name"])
+                .replace("{title}", cert["Title"])
+                .replace("{organization}", cert["Organization"])
+            )
+            cert["Certificate_Text"] = text
+        st.session_state.cert_rows = cert_rows
+        uniform_template = uniform_edit
 
 st.subheader("💬 Edit All")
 global_comment = st.text_area(
@@ -909,6 +924,41 @@ for i, cert in enumerate(cert_rows, 1):
             f"<div style='text-align:right; font-size:14px; margin-top:0;'>Assemblyman, 32nd District</div>"
         )
         st.markdown("<br>".join(lines), unsafe_allow_html=True)
+
+if st.button("Add Another"):
+    st.session_state.show_add = True
+
+if st.session_state.get("show_add"):
+    choice = st.radio(
+        "Add blank certificate or Include Same Certificate Text",
+        ["Add blank certificate", "Include Same Certificate Text"],
+    )
+    if st.button("Confirm Add", key="confirm_add"):
+        text_value = ""
+        date_value = formatted_event_date
+        if choice == "Include Same Certificate Text" and final_cert_rows:
+            text_value = final_cert_rows[0]["Certificate_Text"]
+            date_value = final_cert_rows[0]["Formatted_Date"]
+        st.session_state.cert_rows.append(
+            {
+                "Name": "",
+                "Title": "",
+                "Organization": "",
+                "Certificate_Text": text_value,
+                "Formatted_Date": date_value,
+                "Category": "General",
+                "Tone_Category": "📝",
+                "possible_split": False,
+                "alternatives": {},
+                "Name_Size": determine_name_font_size(""),
+                "Title_Size": 0,
+                "Text_Size": TEXT_MAX_SIZE,
+                "Date_Size": 12,
+                "approved": True,
+            }
+        )
+        st.session_state.show_add = False
+        safe_rerun()
 
 
 def generate_word_certificates(entries):
