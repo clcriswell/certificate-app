@@ -30,4 +30,4 @@ After entering a global comment, click **Regenerate All Certificates** to apply 
 
 ## 🏷️ Uniform Commendation
 
-If every certificate should share identical text, enter it once in the **Uniform Commendation** box and click **Apply Uniform Commendation**. The text you provide will replace the generated commendation on every certificate.
+Enable the **Use one commendation for all certificates** checkbox before generating certificates if you want identical language across every entry. The app will ask GPT to create a single commendation template and automatically fill in each certificate's name, title, and organization.
