@@ -552,13 +552,13 @@ if st.button("🔄 Regenerate All Certificates", key="regen_all"):
     cert_rows = new_rows
     st.success("Certificates updated using Edit All comment.")
 
-st.subheader("👁 Review, Edit, and Approve Each Certificate")
+st.subheader("👁 Review and Modify Individual Certificates")
 final_cert_rows = []
 
 for i, cert in enumerate(cert_rows, 1):
     display_title = format_display_title(cert['Title'], cert['Organization'])
-    expand_flag = i-1 in expanded_indices
-    with st.expander(f"📜 {cert['Name']} – {display_title}", expanded=expand_flag):
+    kwargs = {"expanded": True} if i-1 in expanded_indices else {}
+    with st.expander(f"📜 {cert['Name']} – {display_title}", **kwargs):
 
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
