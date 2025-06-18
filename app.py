@@ -638,7 +638,7 @@ if st.button("📄 Generate Word Certificates"):
     if not approved_entries:
         st.error("No certificates were approved.")
     else:
-        log_certificates(parsed_entries, approved_entries, pdf_text, source="pdf" if pdf_file else "pasted", global_comment=global_comment)
+        log_certificates(parsed_entries, approved_entries, pdf_text, source=source_type, global_comment=global_comment)
         with st.spinner("Generating Word document..."):
             doc = generate_word_certificates(approved_entries)
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
