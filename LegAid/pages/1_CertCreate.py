@@ -6,6 +6,7 @@ from datetime import datetime
 import re
 from dateutil import parser as date_parser
 from pathlib import Path
+from utils.navigation import render_sidebar, render_logo
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -47,6 +48,27 @@ def safe_rerun():
         st.rerun()
     elif hasattr(st, "experimental_rerun"):
         st.experimental_rerun()
+
+
+def reset_request():
+    keys = [
+        "pdf_text",
+        "source_type",
+        "parsed_entries",
+        "cert_rows",
+        "uniform_template",
+        "event_date_raw",
+        "formatted_event_date",
+        "use_uniform",
+        "guidance",
+        "manual_certs",
+    ]
+    for k in keys:
+        if k in st.session_state:
+            del st.session_state[k]
+    st.session_state.started = False
+    st.session_state.start_mode = None
+    safe_rerun()
 
 def format_certificate_date(raw_date_str):
     try:
@@ -510,7 +532,9 @@ def split_certificate(index):
     )
     st.session_state.expand_after_split = [index, index + 1]
 
-st.set_page_config(layout="centered")
+st.set_page_config(layout="centered", initial_sidebar_state="expanded")
+render_sidebar(on_certcreate=reset_request)
+render_logo()
 st.title("📁 CertCreate")
 
 st.markdown(
@@ -544,12 +568,13 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "file":
+        st.button("🔄 Start New Request", on_click=reset_request)
         uploaded_file = st.file_uploader(
             "Upload file", type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"], key="file_upload"
         )
         guidance = st.text_area("Extra Guidance (optional)", key="guidance_file")
         use_uniform = st.checkbox(
-            "Keep Certificate Text Uniformed",
+            "Keep Same Wording For All",
             value=st.session_state.get("use_uniform", False),
             key="uniform_start_file",
         )
@@ -570,10 +595,11 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "paste":
+        st.button("🔄 Start New Request", on_click=reset_request)
         text_input = st.text_area("Paste certificate request text here", height=300, key="paste_text")
         guidance = st.text_area("Extra Guidance (optional)", key="guidance_paste")
         use_uniform = st.checkbox(
-            "Keep Certificate Text Uniformed",
+            "Keep Same Wording For All",
             value=st.session_state.get("use_uniform", False),
             key="uniform_start_paste",
         )
@@ -593,6 +619,7 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "manual":
+        st.button("🔄 Start New Request", on_click=reset_request)
         if "manual_certs" not in st.session_state:
             st.session_state.manual_certs = [
                 {"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""}
@@ -678,6 +705,7 @@ if not st.session_state.started:
             st.session_state.source_type = "manual"
             st.session_state.guidance = ""
             st.session_state.started = True
+            st.session_state.expand_after_split = list(range(len(st.session_state.cert_rows)))
             st.session_state.parsed_entries = [
                 {
                     "name": c["Name"],
@@ -697,22 +725,7 @@ source_type = st.session_state.get("source_type", "pasted")
 
 if st.session_state.started:
     if st.button("🔄 Start New Request"):
-        for key in [
-            "pdf_text",
-            "source_type",
-            "parsed_entries",
-            "cert_rows",
-            "uniform_template",
-            "event_date_raw",
-            "formatted_event_date",
-            "use_uniform",
-            "guidance",
-        ]:
-            if key in st.session_state:
-                del st.session_state[key]
-        st.session_state.started = False
-        st.session_state.start_mode = None
-        safe_rerun()
+        reset_request()
 
 # Attempt to auto-detect the event date from the text
 auto_date_raw = extract_event_date(pdf_text)
@@ -852,7 +865,7 @@ for i, cert in enumerate(cert_rows, 1):
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
 
-        if st.button("🔄 Regenerate Certificate", key=f"regen_{i}"):
+        if st.button("🔄 ReCreate Certificate", key=f"regen_{i}"):
             if indiv_comment.strip():
                 try:
                     apply_global_comment([cert], global_comment)
@@ -945,7 +958,7 @@ def generate_word_certificates(entries):
 
         p_text = doc.add_paragraph(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_text.paragraph_format.space_before = Pt(10)
+        p_text.paragraph_format.space_before = Pt(18)
         p_text.runs[0].font.name = "Times New Roman"
         p_text.runs[0].font.size = Pt(text_size)
 
@@ -1027,9 +1040,11 @@ def generate_pdf_certificates(entries):
             for line in wrap_text(display_title, "Times-Bold", title_size, avail_width):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
+        else:
+            y = name_y
 
         c.setFont("Times-Roman", text_size)
-        y = name_y - 1.0 * inch
+        y -= 0.25 * inch
         for line in wrap_text(entry["Certificate_Text"], "Times-Roman", text_size, avail_width):
             c.drawCentredString(center_x, y, line)
             y -= text_size * 1.2
