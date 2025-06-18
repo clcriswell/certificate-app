@@ -432,7 +432,8 @@ else:
     cert_rows = st.session_state.cert_rows
 
 for cert in cert_rows:
-    cert["Formatted_Date"] = st.session_state.formatted_event_date
+    if st.session_state.event_date_raw.strip():
+        cert["Formatted_Date"] = st.session_state.formatted_event_date
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
