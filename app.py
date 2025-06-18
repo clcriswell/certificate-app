@@ -206,12 +206,26 @@ def load_example_certificates(n=3):
 
     return random.sample(entries, min(len(entries), n))
 
-def extract_certificates(event_text, event_date):
+def extract_certificates(event_text, event_date, uniform=False):
     """Call the LLM to parse certificate information from the event text."""
     cert_rows = []
     parsed_entries = []
+    template_text = ""
 
-    SYSTEM_PROMPT = f"""
+    if uniform:
+        SYSTEM_PROMPT = f"""
+You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned.
+
+Return JSON with two keys:
+  template: a commendation using placeholders {{name}}, {{title}}, and {{organization}}
+  certificates: list of certificates each with name, title, organization (if applicable), date_raw, category, optional possible_split and alternatives
+
+The event date is: {event_date}
+
+Return ONLY valid JSON.
+"""
+    else:
+        SYSTEM_PROMPT = f"""
 You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
@@ -246,14 +260,26 @@ Return ONLY valid JSON.
 
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
-    parsed_entries = json.loads(cleaned)
+    data = json.loads(cleaned)
+
+    if uniform:
+        template_text = data.get("template", "")
+        parsed_entries = data.get("certificates", [])
+    else:
+        parsed_entries = data
 
     for parsed in parsed_entries:
         name = parsed.get("name") or "Recipient"
         title = parsed.get("title") or ""
         org = parsed.get("organization") or ""
         category = parsed.get("category", "General")
-        commendation = parsed.get("commendation") or ""
+        if uniform:
+            commendation = template_text
+            commendation = commendation.replace("{name}", name)
+            commendation = commendation.replace("{title}", title)
+            commendation = commendation.replace("{organization}", org)
+        else:
+            commendation = parsed.get("commendation") or ""
 
         if title.strip().lower() == "certificate of recognition":
             title = ""
@@ -277,7 +303,7 @@ Return ONLY valid JSON.
             "Date_Size": 12
         })
 
-    return parsed_entries, cert_rows
+    return parsed_entries, cert_rows, template_text
 
 def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     """Use reviewer comments to refine an existing certificate via the LLM."""
@@ -415,14 +441,27 @@ st.session_state.event_date_raw = event_date_input
 event_date_raw = st.session_state.event_date_raw or datetime.today().strftime("%B %d, %Y")
 formatted_event_date = format_certificate_date(event_date_raw)
 st.session_state.formatted_event_date = formatted_event_date
+
+# Option to generate a single commendation for all certificates
+use_uniform = st.checkbox(
+    "Use one commendation for all certificates",
+    value=st.session_state.get("use_uniform", False),
+)
+st.session_state.use_uniform = use_uniform
+
 examples = load_example_certificates(3)
 few_shot_examples = ""
 for idx, ex in enumerate(examples, 1):
     few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
 
-if "parsed_entries" not in st.session_state:
+if ("parsed_entries" not in st.session_state
+        or st.session_state.get("use_uniform") != use_uniform):
     try:
-        parsed_entries, cert_rows = extract_certificates(pdf_text, event_date_raw)
+        parsed_entries, cert_rows, uniform_template = extract_certificates(
+            pdf_text,
+            event_date_raw,
+            uniform=use_uniform,
+        )
     except Exception as e:
         st.error("⚠️ GPT failed to extract entries.")
         st.text(str(e))
@@ -430,37 +469,21 @@ if "parsed_entries" not in st.session_state:
 
     st.session_state.parsed_entries = parsed_entries
     st.session_state.cert_rows = cert_rows
+    st.session_state.uniform_template = uniform_template
+    st.session_state.use_uniform = use_uniform
 else:
     parsed_entries = st.session_state.parsed_entries
     cert_rows = st.session_state.cert_rows
+    uniform_template = st.session_state.get("uniform_template", "")
 
 for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
 
-# Allow user to apply a single commendation to all certificates
-st.subheader("🏷️ Uniform Commendation")
-st.write(
-    "Optionally enter one commendation that will replace the generated text for every certificate."
-)
-if "uniform_text" not in st.session_state:
-    st.session_state.uniform_text = ""
-
-uniform_text = st.text_area(
-    "Uniform Commendation",
-    value=st.session_state.uniform_text,
-    key="uniform_text",
-)
-
-if st.button("Apply Uniform Commendation", key="apply_uniform"):
-    if uniform_text.strip():
-        for cert in cert_rows:
-            cert["Certificate_Text"] = uniform_text.strip()
-        st.session_state.cert_rows = cert_rows
-        st.session_state.uniform_text = uniform_text
-        st.success("Uniform commendation applied to all certificates.")
-    else:
-        st.warning("Please enter commendation text before applying.")
+# Display the uniform commendation template when enabled
+if use_uniform and uniform_template:
+    st.subheader("🏷️ Uniform Commendation")
+    st.info(uniform_template)
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(
