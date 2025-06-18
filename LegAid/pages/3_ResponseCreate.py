@@ -2,8 +2,11 @@ import streamlit as st
 from utils.shared_functions import example_helper
 
 
+st.set_page_config(layout="centered")
+st.title("📬 ResponseCreate")
+
+
 def render_constituent_response():
-    st.markdown("## 📬 **Constituent Response Generator**")
     st.write("Draft replies to constituent inquiries.")
 
     st.text_area("Constituent Question", height=100)
