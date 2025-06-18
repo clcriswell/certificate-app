@@ -27,10 +27,10 @@ st.write("Select a tool below to begin.")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.page_link("LegAid/pages/1_CertCreate.py", label="CertCreate")
+    st.page_link("pages/1_CertCreate.py", label="CertCreate")
 with col2:
-    st.page_link("LegAid/pages/2_SpeechCreate.py", label="SpeechCreate")
+    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate")
 with col3:
-    st.page_link("LegAid/pages/3_ResponseCreate.py", label="ResponseCreate")
+    st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate")
 with col4:
-    st.page_link("LegAid/pages/4_LegCreate.py", label="LegCreate")
+    st.page_link("pages/4_LegCreate.py", label="LegCreate")
