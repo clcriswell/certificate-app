@@ -438,29 +438,29 @@ for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
 
-# Allow user to apply a single commendation to all certificates in a category
-categories = sorted({c.get("Category", "General") for c in cert_rows})
-if "uniform_texts" not in st.session_state:
-    st.session_state.uniform_texts = {cat: "" for cat in categories}
-
-st.subheader("🏷️ Uniform Commendation by Category")
+# Allow user to apply a single commendation to all certificates
+st.subheader("🏷️ Uniform Commendation")
 st.write(
-    "Optionally generate or enter a commendation that will be applied to every certificate in the same category."
+    "Optionally enter one commendation that will replace the generated text for every certificate."
 )
-for cat in categories:
-    key_text = f"uniform_text_{cat}"
-    st.session_state.uniform_texts.setdefault(cat, "")
-    st.session_state.uniform_texts[cat] = st.text_area(
-        f"{cat} Commendation", value=st.session_state.uniform_texts[cat], key=key_text
-    )
+if "uniform_text" not in st.session_state:
+    st.session_state.uniform_text = ""
 
-if st.button("Apply Uniform Commendations", key="apply_uniform"):
-    for cert in cert_rows:
-        text = st.session_state.uniform_texts.get(cert.get("Category", "General"), "").strip()
-        if text:
-            cert["Certificate_Text"] = text
-    st.session_state.cert_rows = cert_rows
-    st.success("Uniform commendations applied.")
+uniform_text = st.text_area(
+    "Uniform Commendation",
+    value=st.session_state.uniform_text,
+    key="uniform_text",
+)
+
+if st.button("Apply Uniform Commendation", key="apply_uniform"):
+    if uniform_text.strip():
+        for cert in cert_rows:
+            cert["Certificate_Text"] = uniform_text.strip()
+        st.session_state.cert_rows = cert_rows
+        st.session_state.uniform_text = uniform_text
+        st.success("Uniform commendation applied to all certificates.")
+    else:
+        st.warning("Please enter commendation text before applying.")
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(

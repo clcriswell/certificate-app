@@ -30,4 +30,4 @@ After entering a global comment, click **Regenerate All Certificates** to apply 
 
 ## 🏷️ Uniform Commendation
 
-When a request includes many certificates of the same type, you can apply a single commendation to every certificate in that category. After uploading your request and extracting the entries, the app displays a **Uniform Commendation by Category** section. Enter or paste the commendation text for each category and click **Apply Uniform Commendations**. The text will replace the generated commendation for all certificates in that category.
+If every certificate should share identical text, enter it once in the **Uniform Commendation** box and click **Apply Uniform Commendation**. The text you provide will replace the generated commendation on every certificate.
