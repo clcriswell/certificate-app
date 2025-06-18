@@ -22,7 +22,7 @@ st.markdown(
         <h4 style='margin-top:0; color: gray;'>Tools for Legislative Productivity</h4>
     </div>
     <style>
-    a[data-testid="stPageLink"] {
+    a[data-testid="stPageLink"] {{
         display:inline-block;
         padding:0.5rem 1rem;
         background:#eee;
@@ -30,7 +30,7 @@ st.markdown(
         border-radius:4px;
         margin:0 0.2rem;
         text-decoration:none;
-    }
+    }}
     </style>
     """,
     unsafe_allow_html=True,
