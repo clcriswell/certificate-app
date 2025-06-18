@@ -6,7 +6,7 @@ from utils.navigation import render_sidebar, render_logo
 st.set_page_config(layout="centered", initial_sidebar_state="expanded")
 render_sidebar()
 render_logo()
-st.title("📝 SpeechCreate")
+st.title("🗣️ SpeechCreate")
 
 
 def render_speech_writer():

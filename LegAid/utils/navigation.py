@@ -4,6 +4,10 @@ import base64
 
 
 def render_sidebar(on_certcreate=None):
+    st.markdown(
+        "<style>[data-testid='stSidebarNav']{display:none;}</style>",
+        unsafe_allow_html=True,
+    )
     with st.sidebar:
         st.page_link("app.py", label="LegAid")
         if on_certcreate:
@@ -21,6 +25,6 @@ def render_logo():
     with open(logo_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
     st.markdown(
-        f"<a href='../app.py'><img src='data:image/png;base64,{encoded}' width='300' style='position:absolute;top:10px;right:10px;'></a>",
+        f"<a href='../app.py'><img src='data:image/png;base64,{encoded}' width='80' style='position:absolute;top:10px;right:10px;z-index:1000;'></a>",
         unsafe_allow_html=True,
     )
