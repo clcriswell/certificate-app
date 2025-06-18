@@ -153,6 +153,37 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
             text = text[:TEXT_MAX_CHARS]
     return text
 
+
+def certificate_preview_html(name: str, title: str, org: str, text: str, date: str = "") -> str:
+    """Return HTML preview for a certificate."""
+    name_size = determine_name_font_size(name)
+    display_title = format_display_title(title, org)
+    title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+    lines = [
+        f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold; margin-bottom:4px;'>{name}</div>"
+    ]
+    if display_title.strip():
+        lines.append(
+            f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold; margin-bottom:4px;'>{display_title}</div>"
+        )
+    lines.append(
+        f"<div style='text-align:center; font-size:{int(TEXT_MAX_SIZE)}px; margin-top:8px;'>{text.replace(chr(10), '<br>')}</div>"
+    )
+    if date:
+        for idx, line in enumerate(date.split("\n")):
+            mt = 20 if idx == 0 else 0
+            lines.append(
+                f"<div style='text-align:center; font-size:12px; margin-top:{mt}px;'>{line}</div>"
+            )
+    lines.extend(
+        [
+            "<div style='text-align:right; font-size:12px; margin-top:0;'>_____________________________________</div>",
+            "<div style='text-align:right; font-size:14px; margin-top:0;'>Stan Ellis</div>",
+            "<div style='text-align:right; font-size:14px; margin-top:0;'>Assemblyman, 32nd District</div>",
+        ]
+    )
+    return "<br>".join(lines)
+
 def read_uploaded_file(uploaded_file):
     """Return extracted text and source type from an uploaded file."""
     suffix = Path(uploaded_file.name).suffix.lower()
@@ -482,6 +513,16 @@ def split_certificate(index):
 st.set_page_config(layout="centered")
 st.title("📁 CertCreate")
 
+st.markdown(
+    """
+    <style>
+    .cert-block{border:1px solid #ddd;padding:1rem;margin-bottom:1rem;border-radius:8px;}
+    textarea, input[type=text]{border:2px solid #555 !important;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 if "started" not in st.session_state:
     st.session_state.started = False
 
@@ -491,14 +532,13 @@ if "start_mode" not in st.session_state:
 if not st.session_state.started:
     if st.session_state.start_mode is None:
         st.subheader("Choose how to begin")
-        col1, col2, col3 = st.columns(3)
-        if col1.button("Begin from File"):
+        if st.button("Begin from File", use_container_width=True):
             st.session_state.start_mode = "file"
             safe_rerun()
-        if col2.button("Paste a Request"):
+        if st.button("Paste a Request", use_container_width=True):
             st.session_state.start_mode = "paste"
             safe_rerun()
-        if col3.button("Create Your Own"):
+        if st.button("Create Your Own", use_container_width=True):
             st.session_state.start_mode = "manual"
             safe_rerun()
         st.stop()
@@ -560,6 +600,7 @@ if not st.session_state.started:
 
         manual_certs = st.session_state.manual_certs
         for i, cert in enumerate(manual_certs):
+            st.markdown('<div class="cert-block">', unsafe_allow_html=True)
             st.subheader(f"Certificate {i+1}")
             cert["Name"] = st.text_input("Name", value=cert["Name"], key=f"m_name_{i}", max_chars=NAME_MAX_CHARS)
             cert["Title"] = st.text_input("Title", value=cert["Title"], key=f"m_title_{i}", max_chars=TITLE_MAX_CHARS)
@@ -571,14 +612,20 @@ if not st.session_state.started:
                 "Date (e.g., May 31, 2024)", value=cert.get("Date", ""), key=f"m_date_{i}"
             )
 
-            if st.button("Improve", key=f"improve_{i}"):
+            if st.button("Make Improvements", key=f"improve_{i}"):
                 improved = improve_certificate(cert)
                 st.session_state[f"improved_{i}"] = improved
                 safe_rerun()
 
             if f"improved_{i}" in st.session_state:
                 st.markdown("##### Suggested improvements")
-                st.json(st.session_state[f"improved_{i}"])
+                preview = certificate_preview_html(
+                    st.session_state[f"improved_{i}"]["name"],
+                    st.session_state[f"improved_{i}"]["title"],
+                    st.session_state[f"improved_{i}"]["organization"],
+                    st.session_state[f"improved_{i}"]["certificate_text"],
+                )
+                st.markdown(preview, unsafe_allow_html=True)
                 col_a, col_b = st.columns(2)
                 if col_a.button("Apply Improvements", key=f"apply_{i}"):
                     for k, v in st.session_state[f"improved_{i}"].items():
@@ -596,11 +643,18 @@ if not st.session_state.started:
                     del st.session_state[f"improved_{i}"]
                     safe_rerun()
 
-        if st.button("Add Another"):
+            if len(manual_certs) > 1:
+                if st.button("Remove", key=f"remove_{i}"):
+                    manual_certs.pop(i)
+                    safe_rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        col_add, col_complete = st.columns(2)
+        if col_add.button("Add Another"):
             manual_certs.append({"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""})
             safe_rerun()
 
-        if st.button("Complete"):
+        if col_complete.button("Complete"):
             st.session_state.cert_rows = [
                 {
                     "Name": c["Name"],
@@ -624,6 +678,15 @@ if not st.session_state.started:
             st.session_state.source_type = "manual"
             st.session_state.guidance = ""
             st.session_state.started = True
+            st.session_state.parsed_entries = [
+                {
+                    "name": c["Name"],
+                    "title": c["Title"],
+                    "organization": c["Organization"],
+                    "certificate_text": c["Certificate_Text"],
+                }
+                for c in manual_certs
+            ]
             safe_rerun()
         st.stop()
 
@@ -648,6 +711,7 @@ if st.session_state.started:
             if key in st.session_state:
                 del st.session_state[key]
         st.session_state.started = False
+        st.session_state.start_mode = None
         safe_rerun()
 
 # Attempt to auto-detect the event date from the text
@@ -997,7 +1061,7 @@ else:
     doc.save(tmp_docx.name)
     tmp_docx.seek(0)
     if st.download_button(
-        label="CreateCert",
+        label="CreateCert Word",
         data=tmp_docx.read(),
         file_name="Certificates.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
