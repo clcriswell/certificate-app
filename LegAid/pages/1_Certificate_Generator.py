@@ -414,7 +414,7 @@ def split_certificate(index):
     st.session_state.expand_after_split = [index, index + 1]
 
 st.set_page_config(layout="centered")
-st.title("📁 CertCreations")
+st.title("📁 CertCreate")
 
 if "started" not in st.session_state:
     st.session_state.started = False
