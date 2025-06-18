@@ -206,7 +206,7 @@ def load_example_certificates(n=3):
 
     return random.sample(entries, min(len(entries), n))
 
-def extract_certificates(event_text, event_date):
+def extract_certificates(event_text, event_date, include_commendation=True):
     """Call the LLM to parse certificate information from the event text."""
     cert_rows = []
     parsed_entries = []
@@ -221,13 +221,19 @@ You will be given the full text of a certificate request. Your task is to extrac
 - Only include "title" of "organization" when someone from that organization is receiving recognition from the host
 
 Each certificate must include:
-- name
-- title
-- organization (if applicable)
-- date_raw (or fallback to event date)
-- commendation: 2–3 sentence message starting with "On behalf of the California State Legislature..." that honors their work and ends with well wishes
-- optional: possible_split (true/false)
-- optional: alternatives (dictionary)
+    - name
+    - title
+    - organization (if applicable)
+    - date_raw (or fallback to event date)
+    - category: short (2–3 word) description of the recognition type
+    if include_commendation:
+        SYSTEM_PROMPT += (
+            "    - commendation: 2–3 sentence message starting with 'On behalf of the California State Legislature...' that honors their work and ends with well wishes\n"
+        )
+    SYSTEM_PROMPT += (
+        "    - optional: possible_split (true/false)\n"
+        "    - optional: alternatives (dictionary)\n"
+    )
 
 The event date is: {event_date}
 
@@ -251,12 +257,16 @@ Return ONLY valid JSON.
         name = parsed.get("name") or "Recipient"
         title = parsed.get("title") or ""
         org = parsed.get("organization") or ""
-        commendation = parsed.get("commendation") or ""
+        category = parsed.get("category", "General")
+        if include_commendation:
+            commendation = parsed.get("commendation") or ""
+        else:
+            commendation = ""
 
         if title.strip().lower() == "certificate of recognition":
             title = ""
 
-        if not commendation.strip():
+        if include_commendation and not commendation.strip():
             commendation = enhanced_commendation(name, title, org)
 
         cert_rows.append({
@@ -265,6 +275,7 @@ Return ONLY valid JSON.
             "Organization": org,
             "Certificate_Text": commendation,
             "Formatted_Date": format_certificate_date(parsed.get("date_raw") or event_date),
+            "Category": category,
             "Tone_Category": "📝",
             "possible_split": parsed.get("possible_split", False),
             "alternatives": parsed.get("alternatives", {}),
@@ -320,6 +331,30 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     if updated.get("date_raw"):
         cert["Formatted_Date"] = format_certificate_date(updated["date_raw"])
     return cert
+
+
+def generate_uniform_commendations(categories):
+    """Generate a generic commendation for each category using one LLM call."""
+    if not categories:
+        return {}
+
+    system = (
+        "You write short commendations for certificates. "
+        "Return ONLY valid JSON where each key is a category name "
+        "and the value is a 2-3 sentence commendation starting with "
+        "'On behalf of the California State Legislature...'"
+    )
+    user = "Categories:\n" + "\n".join(f"- {c}" for c in categories)
+
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        temperature=0,
+    )
+
+    content = response.choices[0].message.content
+    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    return json.loads(cleaned)
 
 def apply_global_comment(cert_rows, global_comment):
     """Apply simple global instructions to all certificates."""
@@ -388,6 +423,14 @@ uploaded_file = st.file_uploader(
 )
 text_input = st.text_area("Or paste certificate request text here", height=300)
 
+if "use_uniform_by_category" not in st.session_state:
+    st.session_state.use_uniform_by_category = False
+
+st.session_state.use_uniform_by_category = st.checkbox(
+    "Use uniform commendation per category",
+    value=st.session_state.use_uniform_by_category,
+)
+
 if not uploaded_file and not text_input.strip():
     st.warning("Please upload a file or paste request text.")
     st.stop()
@@ -419,7 +462,11 @@ for idx, ex in enumerate(examples, 1):
 
 if "parsed_entries" not in st.session_state:
     try:
-        parsed_entries, cert_rows = extract_certificates(pdf_text, event_date_raw)
+        parsed_entries, cert_rows = extract_certificates(
+            pdf_text,
+            event_date_raw,
+            include_commendation=not st.session_state.use_uniform_by_category,
+        )
     except Exception as e:
         st.error("⚠️ GPT failed to extract entries.")
         st.text(str(e))
@@ -434,6 +481,60 @@ else:
 for cert in cert_rows:
     if st.session_state.event_date_raw.strip():
         cert["Formatted_Date"] = st.session_state.formatted_event_date
+
+if st.session_state.use_uniform_by_category:
+    categories = sorted({c.get("Category", "General") for c in cert_rows})
+    if "category_uniform_texts" not in st.session_state:
+        try:
+            st.session_state.category_uniform_texts = generate_uniform_commendations(categories)
+        except Exception:
+            st.session_state.category_uniform_texts = {cat: "" for cat in categories}
+        for cert in cert_rows:
+            cat = cert.get("Category", "General")
+            uniform = st.session_state.category_uniform_texts.get(cat, "")
+            if uniform:
+                cert["Certificate_Text"] = uniform
+        st.session_state.cert_rows = cert_rows
+    st.subheader("🏷️ Uniform Commendation by Category")
+    
+    for cat in categories:
+        key = f"uniform_{cat.replace(' ', '_')}"
+        st.session_state.category_uniform_texts.setdefault(cat, "")
+        st.session_state.category_uniform_texts[cat] = st.text_area(
+            f"{cat} Commendation",
+            value=st.session_state.category_uniform_texts[cat],
+            key=key,
+        )
+    if st.button("Apply Uniform Commendations", key="apply_uniform_by_cat"):
+        for cert in cert_rows:
+            cat = cert.get("Category", "General")
+            uniform = st.session_state.category_uniform_texts.get(cat, "").strip()
+            if uniform:
+                cert["Certificate_Text"] = uniform
+        st.session_state.cert_rows = cert_rows
+        st.success("Uniform commendations applied by category.")
+else:
+    if "uniform_text" not in st.session_state:
+        st.session_state.uniform_text = ""
+    st.subheader("🏷️ Uniform Commendation")
+    use_uniform = st.checkbox(
+        "Use the same commendation for all certificates",
+        value=False,
+        key="use_uniform",
+    )
+    if use_uniform:
+        st.session_state.uniform_text = st.text_area(
+            "Uniform Commendation Text",
+            value=st.session_state.uniform_text,
+            key="uniform_text",
+        )
+        if st.button("Apply Uniform Commendation", key="apply_uniform"):
+            uniform = st.session_state.uniform_text.strip()
+            if uniform:
+                for cert in cert_rows:
+                    cert["Certificate_Text"] = uniform
+                st.session_state.cert_rows = cert_rows
+                st.success("Uniform commendation applied to all certificates.")
 
 st.subheader("💬 Global Comments")
 global_comment = st.text_area(

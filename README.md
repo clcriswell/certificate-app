@@ -27,3 +27,7 @@ The **Global Comments** box can modify any certificate field. For example:
 - `Replace 'Officer' in title with organization` swaps the word "Officer" in every title with the certificate's organization.
 
 After entering a global comment, click **Regenerate All Certificates** to apply the changes.
+
+## 🏷️ Uniform Commendation by Category
+
+Before generating certificates you can enable **Use uniform commendation per category**. When selected, the app asks GPT to produce one sample commendation for each category and applies it to every certificate in that group. You can adjust the text in the provided boxes and click **Apply Uniform Commendations** to update all certificates at once.
