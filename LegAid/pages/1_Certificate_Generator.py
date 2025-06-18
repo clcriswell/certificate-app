@@ -24,6 +24,22 @@ import random
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
+# Font and text constraints
+NAME_MIN_SIZE = 24
+NAME_MAX_SIZE = 60
+NAME_MAX_LINES = 1
+NAME_MAX_CHARS = 35
+
+TITLE_MIN_SIZE = 22
+TITLE_MAX_SIZE = 28
+TITLE_MAX_LINES = 1
+TITLE_MAX_CHARS = 40
+
+TEXT_MIN_SIZE = 20
+TEXT_MAX_SIZE = 20
+TEXT_MAX_LINES = 5
+TEXT_MAX_CHARS = 335
+
 # Compatibility wrapper for Streamlit rerun functionality
 def safe_rerun():
     """Trigger a rerun across Streamlit versions."""
@@ -80,20 +96,13 @@ def extract_event_date(text):
                 continue
     return None
 
-def determine_name_font_size(name):
-    length = len(name)
-    if length <= 12: return 60
-    if length <= 18: return 48
-    if length <= 24: return 40
-    if length <= 30: return 34
-    return 28
+def determine_name_font_size(name: str) -> int:
+    """Return the optimal font size for the name."""
+    return NAME_MAX_SIZE
 
-def determine_title_font_size(title):
-    length = len(title)
-    if length <= 20: return 28
-    if length <= 30: return 24
-    if length <= 36: return 20
-    return 18
+def determine_title_font_size(title: str) -> int:
+    """Return the optimal font size for the title."""
+    return TITLE_MAX_SIZE if title.strip() else 0
 
 def format_display_title(title: str, org: str) -> str:
     """Return either the title or organization depending on context."""
@@ -107,8 +116,11 @@ def format_display_title(title: str, org: str) -> str:
 
     return title_clean or org_clean
 
-def enhanced_commendation(name, title, org):
-    parts = ["On behalf of the California State Legislature, it is my honor to recognize"]
+def enhanced_commendation(name: str, title: str, org: str) -> str:
+    """Return a default commendation around the TEXT_MAX_CHARS length."""
+    parts = [
+        "On behalf of the California State Legislature, it is my honor to recognize"
+    ]
     if title and org:
         parts.append(f"your exemplary service as {title} with {org}.")
     elif title:
@@ -118,9 +130,21 @@ def enhanced_commendation(name, title, org):
     else:
         parts.append("your exemplary service.")
 
-    middle = "This accolade reflects your dedication and significant contributions to our community."
-    close = "Please accept my best wishes for your continued success."
-    return " ".join(parts + [middle, close])
+    middle = (
+        "Your tireless dedication and contributions have made a difference in our community. "
+        "Your steadfast commitment to excellence sets a standard for others. "
+        "May your success continue to grow and inspire others."
+    )
+    text = " ".join(parts) + " " + middle
+    if len(text) > TEXT_MAX_CHARS:
+        short_middle = (
+            "Your dedication has positively impacted our community. "
+            "We wish you continued success."
+        )
+        text = " ".join(parts) + " " + short_middle
+        if len(text) > TEXT_MAX_CHARS:
+            text = text[:TEXT_MAX_CHARS]
+    return text
 
 def read_uploaded_file(uploaded_file):
     """Return extracted text and source type from an uploaded file."""
@@ -226,6 +250,8 @@ Return JSON with two keys:
 
 The event date is: {event_date}
 
+Name values must be no longer than {NAME_MAX_CHARS} characters including spaces. Title values must be no longer than {TITLE_MAX_CHARS} characters including spaces. Certificate text should be around {TEXT_MAX_CHARS} characters or fewer and at most {TEXT_MAX_LINES} lines.
+
 Return ONLY valid JSON.
 """
     else:
@@ -249,6 +275,8 @@ Each certificate must include:
 - optional: alternatives (dictionary)
 
 The event date is: {event_date}
+
+Name values must be no longer than {NAME_MAX_CHARS} characters including spaces. Title values must be no longer than {TITLE_MAX_CHARS} characters including spaces. Certificate text should be around {TEXT_MAX_CHARS} characters or fewer and at most {TEXT_MAX_LINES} lines.
 
 Return ONLY valid JSON.
 """
@@ -301,9 +329,9 @@ Return ONLY valid JSON.
             "Tone_Category": "📝",
             "possible_split": parsed.get("possible_split", False),
             "alternatives": parsed.get("alternatives", {}),
-            "Name_Size": determine_name_font_size(name),
-            "Title_Size": determine_title_font_size(format_display_title(title, org)),
-            "Text_Size": 14,
+            "Name_Size": NAME_MAX_SIZE,
+            "Title_Size": TITLE_MAX_SIZE if format_display_title(title, org).strip() else 0,
+            "Text_Size": TEXT_MAX_SIZE,
             "Date_Size": 12
         })
 
@@ -323,6 +351,8 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     prompt = "\n".join(instructions)
     system = (
         "You update certificate details based on reviewer comments. "
+        f"Name must be \u2264 {NAME_MAX_CHARS} characters. Title must be \u2264 {TITLE_MAX_CHARS} characters. "
+        f"Certificate text must not exceed {TEXT_MAX_CHARS} characters and {TEXT_MAX_LINES} lines. "
         "Return ONLY valid JSON with keys name, title, organization, date_raw, commendation."
     )
 
@@ -572,17 +602,32 @@ for i, cert in enumerate(cert_rows, 1):
                 st.session_state[f"split_done_{i}"] = True
                 safe_rerun()
 
-        name = st.text_input("Name", value=cert["Name"], key=f"name_{i}")
-        title = st.text_input("Title", value=cert["Title"], key=f"title_{i}")
+        name = st.text_input(
+            "Name",
+            value=cert["Name"],
+            key=f"name_{i}",
+            max_chars=NAME_MAX_CHARS,
+        )
+        title = st.text_input(
+            "Title",
+            value=cert["Title"],
+            key=f"title_{i}",
+            max_chars=TITLE_MAX_CHARS,
+        )
         org = st.text_input("Organization", value=cert["Organization"], key=f"org_{i}")
-        text = st.text_area("📜 Certificate Text", cert["Certificate_Text"], height=100, key=f"text_{i}")
-        name_size = determine_name_font_size(name)
+        text = st.text_area(
+            "📜 Certificate Text",
+            cert["Certificate_Text"],
+            height=100,
+            key=f"text_{i}",
+            max_chars=TEXT_MAX_CHARS,
+        )
+        lines = text.splitlines()[:TEXT_MAX_LINES]
+        text = "\n".join(lines)
+        name_size = NAME_MAX_SIZE
         display_title = format_display_title(title, org)
-        title_size = determine_title_font_size(display_title)
-        if display_title.strip():
-            text_size = max(8, round(title_size * 0.75))
-        else:
-            text_size = max(8, round(name_size / 2))
+        title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+        text_size = TEXT_MAX_SIZE
         date_size = 12
         exclude = st.checkbox("🚫 Exclude this certificate", value=False, key=f"exclude_{i}")
         approved = not exclude
@@ -592,9 +637,9 @@ for i, cert in enumerate(cert_rows, 1):
         cert["Title"] = title
         cert["Organization"] = org
         cert["Certificate_Text"] = text
-        cert["Name_Size"] = name_size
-        cert["Title_Size"] = title_size
-        cert["Text_Size"] = text_size
+        cert["Name_Size"] = NAME_MAX_SIZE
+        cert["Title_Size"] = TITLE_MAX_SIZE if display_title.strip() else 0
+        cert["Text_Size"] = TEXT_MAX_SIZE
         cert["Date_Size"] = date_size
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
@@ -604,8 +649,8 @@ for i, cert in enumerate(cert_rows, 1):
                 try:
                     apply_global_comment([cert], global_comment)
                     regenerate_certificate(cert, global_comment, indiv_comment)
-                    cert["Name_Size"] = determine_name_font_size(cert["Name"])
-                    cert["Title_Size"] = determine_title_font_size(format_display_title(cert["Title"], cert["Organization"]))
+                    cert["Name_Size"] = NAME_MAX_SIZE
+                    cert["Title_Size"] = TITLE_MAX_SIZE if format_display_title(cert["Title"], cert["Organization"]).strip() else 0
                 except Exception as e:
                     st.error(str(e))
             st.session_state.cert_rows[i-1] = cert
@@ -670,18 +715,10 @@ def generate_word_certificates(entries):
         p_spacer.paragraph_format.space_before = Pt(225)  # 3.5" after 1" margin
         p_spacer.add_run(" ").font.size = Pt(12)
 
-        name_size = entry.get("Name_Size", determine_name_font_size(entry["Name"]))
+        name_size = NAME_MAX_SIZE
         display_title = format_display_title(entry["Title"], entry["Organization"])
-        if display_title.strip():
-            title_size = max(10, round(name_size / 2))
-            safe_title = determine_title_font_size(display_title)
-            while title_size > safe_title and name_size > 20:
-                name_size -= 2
-                title_size = round(name_size / 2)
-            text_size = max(8, round(title_size * 0.75))
-        else:
-            title_size = 0
-            text_size = max(8, round(name_size / 2))
+        title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+        text_size = TEXT_MAX_SIZE
 
         p_name = doc.add_paragraph(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -763,32 +800,10 @@ def generate_pdf_certificates(entries):
         if i > 0:
             c.showPage()
 
-        name_len = len(entry["Name"])
-        if name_len <= 12:
-            name_size = 36
-        elif name_len <= 18:
-            name_size = 32
-        elif name_len <= 24:
-            name_size = 30
-        else:
-            name_size = 28
-
+        name_size = NAME_MAX_SIZE
         display_title = format_display_title(entry["Title"], entry["Organization"])
-        if display_title.strip():
-            t_len = len(display_title)
-            if t_len <= 20:
-                title_size = 18
-            elif t_len <= 30:
-                title_size = 16
-            elif t_len <= 36:
-                title_size = 14
-            else:
-                title_size = 12
-            text_size = max(12, round(title_size * 0.75))
-        else:
-            title_size = 0
-            text_size = max(12, round(name_size / 2))
-        text_size = min(14, text_size)
+        title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+        text_size = TEXT_MAX_SIZE
         date_size = 12
 
         center_x = page_width / 2
