@@ -411,21 +411,64 @@ def split_certificate(index):
 st.set_page_config(layout="centered")
 st.title("📁 Certificate Review Assistant")
 
-uploaded_file = st.file_uploader(
-    "Upload file (optional)",
-    type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"],
-)
-text_input = st.text_area("Or paste certificate request text here", height=300)
+if "started" not in st.session_state:
+    st.session_state.started = False
 
-if not uploaded_file and not text_input.strip():
-    st.warning("Please upload a file or paste request text.")
+if not st.session_state.started:
+    uploaded_file = st.file_uploader(
+        "Upload file (optional)",
+        type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"],
+    )
+    text_input = st.text_area(
+        "Or paste certificate request text here", height=300
+    )
+    use_uniform = st.checkbox(
+        "Use one commendation for all certificates",
+        value=st.session_state.get("use_uniform", False),
+        key="uniform_start",
+    )
+
+    if st.button("▶️ Begin"):
+        if not uploaded_file and not text_input.strip():
+            st.warning("Please upload a file or paste request text before beginning.")
+        else:
+            if uploaded_file:
+                pdf_text, source_type = read_uploaded_file(uploaded_file)
+            else:
+                pdf_text = text_input
+                source_type = "pasted"
+
+            st.session_state.pdf_text = pdf_text
+            st.session_state.source_type = source_type
+            st.session_state.use_uniform = use_uniform
+
+            auto_date_raw = extract_event_date(pdf_text)
+            st.session_state.event_date_raw = auto_date_raw or ""
+            st.session_state.started = True
+            safe_rerun()
     st.stop()
 
-if uploaded_file:
-    pdf_text, source_type = read_uploaded_file(uploaded_file)
-else:
-    pdf_text = text_input
-    source_type = "pasted"
+uploaded_file = None
+text_input = None
+pdf_text = st.session_state.get("pdf_text", "")
+source_type = st.session_state.get("source_type", "pasted")
+
+if st.session_state.started:
+    if st.button("🔄 Start New Request"):
+        for key in [
+            "pdf_text",
+            "source_type",
+            "parsed_entries",
+            "cert_rows",
+            "uniform_template",
+            "event_date_raw",
+            "formatted_event_date",
+            "use_uniform",
+        ]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.session_state.started = False
+        safe_rerun()
 
 # Attempt to auto-detect the event date from the text
 auto_date_raw = extract_event_date(pdf_text)
@@ -442,20 +485,17 @@ event_date_raw = st.session_state.event_date_raw or datetime.today().strftime("%
 formatted_event_date = format_certificate_date(event_date_raw)
 st.session_state.formatted_event_date = formatted_event_date
 
-# Option to generate a single commendation for all certificates
-use_uniform = st.checkbox(
-    "Use one commendation for all certificates",
-    value=st.session_state.get("use_uniform", False),
-)
-st.session_state.use_uniform = use_uniform
+use_uniform = st.session_state.get("use_uniform", False)
 
 examples = load_example_certificates(3)
 few_shot_examples = ""
 for idx, ex in enumerate(examples, 1):
-    few_shot_examples += f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\nOrganization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
+    few_shot_examples += (
+        f"\nExample {idx}:\nName: {ex['final_name']}\nTitle: {ex['final_title']}\n"
+        f"Organization: {ex['final_organization']}\nCommendation:\n{ex['final_commendation']}\n"
+    )
 
-if ("parsed_entries" not in st.session_state
-        or st.session_state.get("use_uniform") != use_uniform):
+if "parsed_entries" not in st.session_state:
     try:
         parsed_entries, cert_rows, uniform_template = extract_certificates(
             pdf_text,
@@ -470,7 +510,6 @@ if ("parsed_entries" not in st.session_state
     st.session_state.parsed_entries = parsed_entries
     st.session_state.cert_rows = cert_rows
     st.session_state.uniform_template = uniform_template
-    st.session_state.use_uniform = use_uniform
 else:
     parsed_entries = st.session_state.parsed_entries
     cert_rows = st.session_state.cert_rows
