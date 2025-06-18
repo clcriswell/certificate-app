@@ -335,12 +335,27 @@ def apply_global_comment(cert_rows, global_comment):
         for cert in cert_rows:
             cert["Organization"] = org_value
 
-    # Replace the title with the organization text
+    # Replace the entire title with the organization text
     if ("use organization instead of title" in comment or
             "replace title with organization" in comment):
         for cert in cert_rows:
             cert["Title"] = cert.get("Organization", "")
-            cert["Title_Size"] = determine_title_font_size(format_display_title(cert["Title"], cert["Organization"]))
+            cert["Title_Size"] = determine_title_font_size(
+                format_display_title(cert["Title"], cert["Organization"])
+            )
+
+    # Replace a specific word in the title with the organization text
+    replace_word = re.search(
+        r"replace ['\"]?([^'\"]+)['\"]? in title with organization",
+        comment,
+    )
+    if replace_word:
+        target = replace_word.group(1).strip()
+        for cert in cert_rows:
+            cert["Title"] = cert.get("Title", "").replace(target, cert.get("Organization", ""))
+            cert["Title_Size"] = determine_title_font_size(
+                format_display_title(cert["Title"], cert["Organization"])
+            )
 
     return cert_rows
 

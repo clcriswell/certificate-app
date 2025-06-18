@@ -24,5 +24,6 @@ The **Global Comments** box can modify any certificate field. For example:
 
 - `Organization name for all certificates is "Acme Corp"` will set the organization on every certificate to "Acme Corp".
 - `Use organization instead of title` copies the organization value into the Title field for each certificate.
+- `Replace 'Officer' in title with organization` swaps the word "Officer" in every title with the certificate's organization.
 
 After entering a global comment, click **Regenerate All Certificates** to apply the changes.
