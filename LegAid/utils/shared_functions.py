@@ -83,5 +83,5 @@ def enforce_first_person(text: str) -> str:
     ]
 
     for pattern, repl in replacements:
-        text = re.sub(pattern, repl, flags=re.IGNORECASE)
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
     return text
