@@ -1,6 +1,6 @@
 import streamlit as st
 from utils.shared_functions import example_helper
-from utils.navigation import render_sidebar, render_logo, SMALL_LOGO_HTML
+from utils.navigation import render_sidebar, render_logo
 
 
 
@@ -13,7 +13,7 @@ st.set_page_config(
 render_sidebar()
 render_logo()
 
-st.markdown(f"<h1>{SMALL_LOGO_HTML} SpeechCreate</h1>", unsafe_allow_html=True)
+st.markdown("<h1>SpeechCreate</h1>", unsafe_allow_html=True)
 
 
 def render_speech_writer():
