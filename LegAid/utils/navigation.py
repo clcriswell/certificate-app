@@ -28,20 +28,20 @@ def render_sidebar(on_certcreate=None):
         if on_certcreate:
             st.button("CertCreate", on_click=on_certcreate)
         else:
-st.markdown(logo_small, unsafe_allow_html=True)
-st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+            st.markdown(logo_small, unsafe_allow_html=True)
+            st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
 
-st.markdown(logo_small, unsafe_allow_html=True)
-st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+        st.markdown(logo_small, unsafe_allow_html=True)
+        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
-st.markdown(logo_small, unsafe_allow_html=True)
-st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
+        st.markdown(logo_small, unsafe_allow_html=True)
+        st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 
-st.markdown(logo_small, unsafe_allow_html=True)
-st.page_link("pages/4_LegTrack.py", label="LegTrack", icon=None)
+        st.markdown(logo_small, unsafe_allow_html=True)
+        st.page_link("pages/4_LegTrack.py", label="LegTrack", icon=None)
 
-st.markdown(logo_small, unsafe_allow_html=True)
-st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
+        st.markdown(logo_small, unsafe_allow_html=True)
+        st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
 
 
 
