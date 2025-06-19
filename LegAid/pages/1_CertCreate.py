@@ -486,6 +486,8 @@ Return JSON with two keys:
   template: a commendation using placeholders {{name}}, {{title}}, and {{organization}}
   certificates: list of certificates each with name, title, organization (if applicable), date_raw, category, optional possible_split and alternatives
 
+Each commendation must begin with "On behalf of the California State Legislature, {{opening}}" where {{opening}} is a brief phrase like "congratulations on", "honoring", or "celebrating" selected according to the certificate's category.
+
 The event date is: {event_date}
 
 Name values must be no longer than {NAME_MAX_CHARS} characters including spaces. Title values must be no longer than {TITLE_MAX_CHARS} characters including spaces. Certificate text should be around {TEXT_MAX_CHARS} characters or fewer and at most {TEXT_MAX_LINES} lines.
@@ -510,7 +512,7 @@ Each certificate must include:
 - organization (if applicable)
 - date_raw (or fallback to event date)
 - category: short (2–3 word) description of the recognition type
-- commendation: 2–3 sentence message starting with "On behalf of the California State Legislature..." that honors their work and ends with well wishes
+- commendation: 2–3 sentence message that honors their work and ends with well wishes. Start each commendation with "On behalf of the California State Legislature, {{opening}}" where {{opening}} is a brief phrase like "congratulations on", "honoring", or "celebrating" chosen according to the certificate's category.
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
