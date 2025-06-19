@@ -262,20 +262,39 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
     return text
 
 
-def certificate_preview_html(name: str, title: str, org: str, text: str, date: str = "") -> str:
+def certificate_preview_html(
+    name: str,
+    title: str,
+    org: str,
+    text: str,
+    date: str = "",
+    highlight: set | None = None,
+) -> str:
     """Return HTML preview for a certificate."""
+    highlight = highlight or set()
     name_size = determine_name_font_size(name)
     display_title = format_display_title(title, org)
     title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+
+    name_html = name
+    if "name" in highlight:
+        name_html = f"<span style='color:red'>{name}</span>"
+    display_title_html = display_title
+    if {"title", "organization"} & highlight and display_title.strip():
+        display_title_html = f"<span style='color:red'>{display_title}</span>"
+    text_html = text.replace(chr(10), "<br>")
+    if "certificate_text" in highlight:
+        text_html = f"<span style='color:red'>{text_html}</span>"
+
     lines = [
-        f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold; margin-bottom:4px;'>{name}</div>"
+        f"<div style='text-align:center; font-size:{int(name_size)}px; font-weight:bold; margin-bottom:4px;'>{name_html}</div>"
     ]
     if display_title.strip():
         lines.append(
-            f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold; margin-bottom:4px;'>{display_title}</div>"
+            f"<div style='text-align:center; font-size:{int(title_size)}px; font-weight:bold; margin-bottom:4px;'>{display_title_html}</div>"
         )
     lines.append(
-        f"<div style='text-align:center; font-size:{int(TEXT_MAX_SIZE)}px; margin-top:8px;'>{text.replace(chr(10), '<br>')}</div>"
+        f"<div style='text-align:center; font-size:{int(TEXT_MAX_SIZE)}px; margin-top:8px;'>{text_html}</div>"
     )
     if date:
         for idx, line in enumerate(date.split("\n")):
@@ -698,8 +717,8 @@ st.markdown("<h1>CertCreate</h1>", unsafe_allow_html=True)
 st.markdown(
     """
     <style>
-    button[id^='apply_'] {background-color:green;color:white;}
-    button[id^='keep_'] {background-color:red;color:white;}
+    button[id^='apply_'] {background-color:#90ee90;color:black;}
+    button[id^='keep_'] {background-color:#f8d7da;color:black;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -826,6 +845,16 @@ if not st.session_state.started:
                 "Date (e.g., May 31, 2024)", value=cert.get("Date", ""), key=f"m_date_{i}"
             )
 
+            if f"improved_{i}" not in st.session_state:
+                st.markdown("##### Preview")
+                preview = certificate_preview_html(
+                    cert["Name"],
+                    cert["Title"],
+                    cert["Organization"],
+                    cert["Certificate_Text"],
+                )
+                st.markdown(preview, unsafe_allow_html=True)
+
             if st.button("Ask LegAid to Make Improvements", key=f"improve_{i}"):
                 improved = improve_certificate(cert)
                 st.session_state[f"improved_{i}"] = improved
@@ -840,18 +869,27 @@ if not st.session_state.started:
                     apply_btn = c1.button("Apply", key=f"apply_{i}")
                     keep_btn = c2.button("Keep Original", key=f"keep_{i}")
                     c1.markdown(
-                        f"<style>button#apply_{i} {{background-color:green;color:white;}}</style>",
+                        f"<style>button#apply_{i} {{background-color:#90ee90;color:black;}}</style>",
                         unsafe_allow_html=True,
                     )
                     c2.markdown(
-                        f"<style>button#keep_{i} {{background-color:red;color:white;}}</style>",
+                        f"<style>button#keep_{i} {{background-color:#f8d7da;color:black;}}</style>",
                         unsafe_allow_html=True,
                     )
+                improved = st.session_state[f"improved_{i}"]
+                highlight = set()
+                if improved["name"] != cert.get("Name", ""):
+                    highlight.add("name")
+                if improved["title"] != cert.get("Title", "") or improved["organization"] != cert.get("Organization", ""):
+                    highlight.update(["title", "organization"])
+                if improved["certificate_text"] != cert.get("Certificate_Text", ""):
+                    highlight.add("certificate_text")
                 preview = certificate_preview_html(
-                    st.session_state[f"improved_{i}"]["name"],
-                    st.session_state[f"improved_{i}"]["title"],
-                    st.session_state[f"improved_{i}"]["organization"],
-                    st.session_state[f"improved_{i}"]["certificate_text"],
+                    improved["name"],
+                    improved["title"],
+                    improved["organization"],
+                    improved["certificate_text"],
+                    highlight=highlight,
                 )
                 st.markdown(preview, unsafe_allow_html=True)
                 if apply_btn:
