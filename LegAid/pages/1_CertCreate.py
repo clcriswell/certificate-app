@@ -110,13 +110,32 @@ def vision_ocr_image(image_bytes: bytes) -> str:
     except Exception:
         return ""
 
+def _assume_year(dt: datetime, missing_year: bool) -> datetime:
+    """Return dt with assumed year if missing."""
+    if not missing_year:
+        return dt
+
+    today = datetime.today()
+    dt = dt.replace(year=today.year)
+    if (dt.month, dt.day) < (today.month, today.day):
+        dt = dt.replace(year=today.year + 1)
+    return dt
+
+
 def format_certificate_date(raw_date_str):
     try:
-        dt = datetime.strptime(raw_date_str, "%B %d, %Y")
-    except ValueError:
+        dt = date_parser.parse(
+            raw_date_str,
+            fuzzy=True,
+            default=datetime(datetime.today().year, 1, 1),
+        )
+        missing_year = dt.year == 1900
+        dt = _assume_year(dt, missing_year)
+    except Exception:
         for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
             try:
                 dt = datetime.strptime(raw_date_str, fmt)
+                missing_year = False
                 break
             except ValueError:
                 continue
@@ -140,19 +159,28 @@ def format_certificate_date(raw_date_str):
 
 def extract_event_date(text):
     """Attempt to parse a date from freeform text."""
+    month = (
+        r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|"
+        r"Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    )
     patterns = [
-        r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)[\s\t]+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{2,4})?",
+        rf"{month}\.?[\s\t]+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s*\d{{2,4}})?",
         r"\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?",
+        rf"\d{{1,2}}(?:st|nd|rd|th)?\s+of\s+{month}\.?(?:,?\s*\d{{2,4}})?",
         r"\d{4}-\d{2}-\d{2}",
     ]
     for pattern in patterns:
-        match = re.search(pattern, text)
+        match = re.search(pattern, text, flags=re.IGNORECASE)
         if match:
             date_str = match.group(0)
             try:
-                dt = date_parser.parse(date_str, fuzzy=True, default=datetime(datetime.today().year, 1, 1))
-                if dt.year == 1900:
-                    dt = dt.replace(year=datetime.today().year)
+                dt = date_parser.parse(
+                    date_str,
+                    fuzzy=True,
+                    default=datetime(datetime.today().year, 1, 1),
+                )
+                missing_year = dt.year == 1900
+                dt = _assume_year(dt, missing_year)
                 return dt.strftime("%B %d, %Y")
             except Exception:
                 continue
