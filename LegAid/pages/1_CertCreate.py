@@ -853,6 +853,11 @@ if not st.session_state.started:
             )
 
             if f"improved_{i}" not in st.session_state:
+                if st.button("Ask LegAid to Make Improvements", key=f"improve_{i}"):
+                    improved = improve_certificate(cert)
+                    st.session_state[f"improved_{i}"] = improved
+                    safe_rerun()
+
                 st.markdown("##### Preview")
                 preview = certificate_preview_html(
                     cert["Name"],
@@ -861,11 +866,6 @@ if not st.session_state.started:
                     cert["Certificate_Text"],
                 )
                 st.markdown(preview, unsafe_allow_html=True)
-
-            if st.button("Ask LegAid to Make Improvements", key=f"improve_{i}"):
-                improved = improve_certificate(cert)
-                st.session_state[f"improved_{i}"] = improved
-                safe_rerun()
 
             if f"improved_{i}" in st.session_state:
                 left, right = st.columns([3, 2])
