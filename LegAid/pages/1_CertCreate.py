@@ -153,10 +153,32 @@ def normalize_spacing(text: str) -> str:
     return cleaned.strip()
 
 def enhanced_commendation(name: str, title: str, org: str) -> str:
-    """Return a default commendation around the TEXT_MAX_CHARS length."""
-    parts = [
-        "On behalf of the California State Legislature, it is my honor to recognize"
-    ]
+    """Return a default commendation around the TEXT_MAX_CHARS length with tone based on event text."""
+    context = st.session_state.get("pdf_text", "").lower()
+
+    if any(word in context for word in ["memorial", "tribute", "in memory"]):
+        style = "solemn"
+    elif any(word in context for word in ["veteran", "patriotic", "flag", "military"]):
+        style = "patriotic"
+    elif any(word in context for word in ["celebration", "festival", "anniversary", "award", "gala", "recognition"]):
+        style = "celebratory"
+    else:
+        style = "formal"
+
+    if style == "solemn":
+        opening = "On behalf of the California State Legislature, we solemnly honor"
+        closing = "We remember your lasting impact and offer our deepest respect."
+    elif style == "patriotic":
+        opening = "On behalf of the California State Legislature, it is my honor to commend"
+        closing = "Your devotion to our nation inspires all Californians."
+    elif style == "celebratory":
+        opening = "On behalf of the California State Legislature, it is my pleasure to recognize"
+        closing = "May this celebration bring continued success and joy."
+    else:
+        opening = "On behalf of the California State Legislature, it is my honor to recognize"
+        closing = "Your steadfast commitment sets a standard for others."
+
+    parts = [opening]
     if title and org:
         parts.append(f"your exemplary service as {title} with {org}.")
     elif title:
@@ -166,20 +188,10 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
     else:
         parts.append("your exemplary service.")
 
-    middle = (
-        "Your tireless dedication and contributions have made a difference in our community. "
-        "Your steadfast commitment to excellence sets a standard for others. "
-        "May your success continue to grow and inspire others."
-    )
-    text = " ".join(parts) + " " + middle
+    parts.append(closing)
+    text = " ".join(parts)
     if len(text) > TEXT_MAX_CHARS:
-        short_middle = (
-            "Your dedication has positively impacted our community. "
-            "We wish you continued success."
-        )
-        text = " ".join(parts) + " " + short_middle
-        if len(text) > TEXT_MAX_CHARS:
-            text = text[:TEXT_MAX_CHARS]
+        text = text[:TEXT_MAX_CHARS]
     return text
 
 
@@ -276,6 +288,11 @@ def read_uploaded_file(uploaded_file):
             try:
                 img = ImageOps.exif_transpose(Image.open(tmp_path).convert("L"))
                 text = pytesseract.image_to_string(img)
+                flyer_prefix = (
+                    "This is the text from an event flyer. Use layout and wording to infer participants and purpose.\n"
+                )
+                text = f"{flyer_prefix}{text}"
+                st.session_state.pdf_text = text
             except Exception:
                 text = ""
         return text, suffix.lstrip(".")
@@ -342,9 +359,15 @@ def extract_certificates(event_text, event_date, uniform=False):
     parsed_entries = []
     template_text = ""
 
+    flyer_note = ""
+    if st.session_state.get("source_type") == "flyer":
+        flyer_note = (
+            "The following text was extracted from a flyer image. Your task is to infer who or what is being honored, the event's purpose, and create appropriate certificates.\n\n"
+        )
+
     if uniform:
         SYSTEM_PROMPT = f"""
-You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned.
+{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned.
 
 Return JSON with two keys:
   template: a commendation using placeholders {{name}}, {{title}}, and {{organization}}
@@ -358,7 +381,7 @@ Return ONLY valid JSON.
 """
     else:
         SYSTEM_PROMPT = f"""
-You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
+{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
 - If more than one name or organization appears in a single entry, set \"possible_split\": true
@@ -671,7 +694,11 @@ if not st.session_state.started:
             else:
                 pdf_text, source_type = read_uploaded_file(uploaded_file)
                 st.session_state.pdf_text = pdf_text
-                st.session_state.source_type = source_type
+                img_exts = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif"}
+                if Path(uploaded_file.name).suffix.lower() in img_exts:
+                    st.session_state.source_type = "flyer"
+                else:
+                    st.session_state.source_type = source_type
                 st.session_state.guidance = guidance
                 st.session_state.use_uniform = use_uniform
 
