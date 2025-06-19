@@ -924,7 +924,11 @@ final_cert_rows = []
 for i, cert in enumerate(cert_rows, 1):
     display_title = format_display_title(cert['Title'], cert['Organization'])
     kwargs = {"expanded": True} if i-1 in expanded_indices else {}
-    with st.expander(f"📜 {cert['Name']} – {display_title}", **kwargs):
+    with st.expander(
+        f"📜 {cert['Name']} – {display_title}",
+        key=f"expander_{i}",
+        **kwargs,
+    ):
 
         if cert.get("possible_split"):
             st.warning("⚠️ This entry may include multiple recipients.")
