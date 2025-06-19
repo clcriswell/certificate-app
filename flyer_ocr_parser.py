@@ -8,6 +8,8 @@ import base64
 import requests
 import openai
 
+from LegAid.utils.shared_functions import normalize_date_strings
+
 
 if not os.getenv("OPENAI_API_KEY"):
     raise RuntimeError(
@@ -57,6 +59,8 @@ def ocr_image(path: str) -> str:
 
 def parse_certificate(text: str) -> list:
     """Call the OpenAI API to parse certificate data from text and return a list of certificate dictionaries."""
+
+    text = normalize_date_strings(text)
     client = openai.OpenAI()
     response = client.chat.completions.create(
         model="gpt-4o",

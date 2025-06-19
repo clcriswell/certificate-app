@@ -1,9 +1,49 @@
 """Shared helper functions for LegAid."""
 
+from __future__ import annotations
+
+import re
+from datetime import datetime
+from dateutil import parser as date_parser
+
 
 def example_helper():
     """Example helper function."""
     pass
+
+
+def normalize_date_strings(text: str) -> str:
+    """Return text with common date formats normalized.
+
+    Examples like "JUNE 14TH" or "14th of June" will be converted to
+    "June 14". Dates that include a year will be formatted as
+    ``YYYY-MM-DD``.
+    """
+
+    month = (
+        r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|"
+        r"May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|"
+        r"Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+    )
+
+    patterns = [
+        rf"{month}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s*\d{{2,4}})?(?:\s+[A-Za-z]+)*",
+        r"\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?",
+        rf"\d{{1,2}}(?:st|nd|rd|th)?\s+of\s+{month}\.?(?:,?\s*\d{{2,4}})?",
+        r"\d{4}-\d{2}-\d{2}",
+    ]
+    date_regex = re.compile("|".join(patterns), flags=re.IGNORECASE)
+
+    def repl(match: re.Match) -> str:
+        raw = match.group(0)
+        try:
+            dt = date_parser.parse(raw, fuzzy=True, default=datetime(1900, 1, 1))
+        except Exception:
+            return raw
+        has_year = dt.year != 1900
+        return dt.strftime("%Y-%m-%d") if has_year else dt.strftime("%B %d")
+
+    return date_regex.sub(repl, text)
 
 
 def reset_certcreate_session():
