@@ -362,12 +362,14 @@ def extract_certificates(event_text, event_date, uniform=False):
     flyer_note = ""
     if st.session_state.get("source_type") == "flyer":
         flyer_note = (
-            "The following text was extracted from a flyer image. Your task is to infer who or what is being honored, the event's purpose, and create appropriate certificates.\n\n"
+            "The following text was extracted from a flyer image. Extract only real, explicitly named individuals or organizations. "
+            "Do not create placeholder names or titles. If a hosting or sponsoring organization is clearly listed, generate a certificate entry for that organization. "
+            "Do not generate certificates for event themes or generic phrases.\n\n"
         )
 
     if uniform:
         SYSTEM_PROMPT = f"""
-{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned.
+{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned. Only include real named individuals or organizations. If a host or sponsor is clearly listed, create a certificate entry for that organization. Do not fabricate names or titles, and skip generic event themes.
 
 Return JSON with two keys:
   template: a commendation using placeholders {{name}}, {{title}}, and {{organization}}
@@ -381,7 +383,7 @@ Return ONLY valid JSON.
 """
     else:
         SYSTEM_PROMPT = f"""
-{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one:
+{flyer_note}You will be given the full text of a certificate request. Your task is to extract ALL individual certificates mentioned, and for each one. Only include real named individuals or organizations. If a hosting or sponsor organization is clearly listed, create a certificate entry for that organization. Do not fabricate names or titles, and skip certificates for event themes or generic phrases:
 
 - Carefully interpret the context of the event and the nature of each person's recognition
 - If more than one name or organization appears in a single entry, set \"possible_split\": true
