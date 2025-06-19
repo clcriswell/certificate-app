@@ -7,7 +7,7 @@ import re
 from dateutil import parser as date_parser
 from pathlib import Path
 from utils.navigation import render_sidebar, render_logo
-from utils.shared_functions import normalize_date_strings
+from utils.shared_functions import normalize_date_strings, enforce_first_person
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -261,6 +261,7 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
 
     parts.append(closing)
     text = " ".join(parts)
+    text = enforce_first_person(text)
     if len(text) > TEXT_MAX_CHARS:
         text = text[:TEXT_MAX_CHARS]
     return text
@@ -558,6 +559,8 @@ Return ONLY valid JSON.
         if not commendation.strip():
             commendation = enhanced_commendation(name, title, org)
 
+        commendation = enforce_first_person(commendation)
+
         cert_rows.append({
             "Name": name,
             "Title": title,
@@ -618,7 +621,10 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     cert["Name"] = updated.get("name", cert["Name"])
     cert["Title"] = updated.get("title", cert["Title"])
     cert["Organization"] = updated.get("organization", cert["Organization"])
-    cert["Certificate_Text"] = updated.get("commendation", cert["Certificate_Text"])
+    if "commendation" in updated:
+        cert["Certificate_Text"] = enforce_first_person(updated["commendation"])
+    else:
+        cert["Certificate_Text"] = enforce_first_person(cert["Certificate_Text"])
     if updated.get("date_raw"):
         cert["Formatted_Date"] = format_certificate_date(updated["date_raw"])
     return cert
@@ -659,6 +665,9 @@ def apply_global_comment(cert_rows, global_comment):
                 format_display_title(cert["Title"], cert["Organization"])
             )
 
+    for cert in cert_rows:
+        cert["Certificate_Text"] = enforce_first_person(cert.get("Certificate_Text", ""))
+
     return cert_rows
 
 def improve_certificate(cert):
@@ -684,7 +693,10 @@ def improve_certificate(cert):
     )
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
-    return json.loads(cleaned)
+    data = json.loads(cleaned)
+    if "certificate_text" in data:
+        data["certificate_text"] = enforce_first_person(data["certificate_text"])
+    return data
 
 def split_certificate(index):
     """Split a certificate with multiple names into separate entries."""
@@ -927,7 +939,11 @@ if not st.session_state.started:
                     "Name": c["Name"],
                     "Title": c["Title"],
                     "Organization": c["Organization"],
-                    "Certificate_Text": c["Certificate_Text"] or enhanced_commendation(c["Name"], c["Title"], c["Organization"]),
+                    "Certificate_Text": enforce_first_person(
+                        c["Certificate_Text"] or enhanced_commendation(
+                            c["Name"], c["Title"], c["Organization"]
+                        )
+                    ),
                     "Formatted_Date": format_certificate_date(c.get("Date") or datetime.today().strftime("%B %d, %Y")),
                     "Category": "General",
                     "Tone_Category": "📝",
@@ -1040,7 +1056,7 @@ if use_uniform and uniform_template:
                 .replace("{title}", cert["Title"])
                 .replace("{organization}", cert["Organization"])
             )
-            cert["Certificate_Text"] = normalize_spacing(text)
+            cert["Certificate_Text"] = enforce_first_person(normalize_spacing(text))
         st.session_state.cert_rows = cert_rows
         uniform_template = uniform_edit
 

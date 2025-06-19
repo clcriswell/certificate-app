@@ -67,3 +67,21 @@ def reset_certcreate_session():
             del st.session_state[k]
     st.session_state.started = False
     st.session_state.start_mode = None
+
+
+def enforce_first_person(text: str) -> str:
+    """Return text with first-person pronouns instead of plural forms."""
+
+    replacements = [
+        (r"\bwe are\b", "I am"),
+        (r"\bwe're\b", "I'm"),
+        (r"\bwe have\b", "I have"),
+        (r"\bwe've\b", "I've"),
+        (r"\bwe\b", "I"),
+        (r"\bour\b", "my"),
+        (r"\bours\b", "mine"),
+    ]
+
+    for pattern, repl in replacements:
+        text = re.sub(pattern, repl, flags=re.IGNORECASE)
+    return text
