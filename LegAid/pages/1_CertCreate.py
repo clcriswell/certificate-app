@@ -858,7 +858,7 @@ global_comment = st.text_area(
     key="global_comment"
 )
 
-if st.button("🔄 Regenerate All Certificates", key="regen_all"):
+if st.button("🔄 Recreate All Certificates", key="regen_all"):
     cert_rows = apply_global_comment(cert_rows, global_comment)
     new_rows = []
     for cert in cert_rows:

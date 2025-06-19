@@ -35,7 +35,7 @@ The **Modify All** box can modify any certificate field. For example:
 - `Use organization instead of title` copies the organization value into the Title field for each certificate.
 - `Replace 'Officer' in title with organization` swaps the word "Officer" in every title with the certificate's organization.
 
-After entering a comment, click **Regenerate All Certificates** to apply the changes.
+After entering a comment, click **Recreate All Certificates** to apply the changes.
 
 ## 🏷️ Uniform Certificate Text
 
