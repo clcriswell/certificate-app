@@ -19,10 +19,9 @@ def render_sidebar(on_certcreate=None):
         encoded = base64.b64encode(f.read()).decode()
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
+        st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
         if on_certcreate:
-            st.button("CertCreate", on_click=on_certcreate)
-        else:
-            st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+            st.button("Reset", on_click=on_certcreate)
 
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
@@ -39,6 +38,6 @@ def render_logo():
     with open(logo_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
     st.markdown(
-        f"<a href='../app.py'><img src='data:image/png;base64,{encoded}' width='80' style='position:absolute;top:10px;right:10px;z-index:1000;'></a>",
+        f"<a href='../app.py'><img src='data:image/png;base64,{encoded}' width='160' style='position:absolute;top:10px;right:10px;z-index:1000;'></a>",
         unsafe_allow_html=True,
     )

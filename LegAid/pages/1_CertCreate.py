@@ -225,15 +225,16 @@ def read_uploaded_file(uploaded_file):
         elif suffix in {".txt", ".csv"}:
             with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read()
-        elif suffix == ".docx":
-            doc = Document(tmp_path)
-            text = "\n".join(p.text for p in doc.paragraphs)
-        elif suffix == ".doc":
+        elif suffix in {".docx", ".doc"}:
             try:
                 import docx2txt
                 text = docx2txt.process(tmp_path)
             except Exception:
-                text = ""
+                try:
+                    doc = Document(tmp_path)
+                    text = "\n".join(p.text for p in doc.paragraphs)
+                except Exception:
+                    text = ""
         elif suffix in {".xlsx", ".xls"}:
             df = pd.read_excel(tmp_path, header=None)
             lines = []
@@ -242,9 +243,9 @@ def read_uploaded_file(uploaded_file):
                 if line:
                     lines.append(line)
             text = "\n".join(lines)
-        elif suffix in {".png", ".jpg", ".jpeg"}:
+        elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
             try:
-                img = ImageOps.exif_transpose(Image.open(tmp_path))
+                img = ImageOps.exif_transpose(Image.open(tmp_path).convert("L"))
                 text = pytesseract.image_to_string(img)
             except Exception:
                 text = ""
@@ -416,7 +417,7 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     """Use reviewer comments to refine an existing certificate via the LLM."""
     instructions = []
     if global_comment.strip():
-        instructions.append(f"Edit All comment: {global_comment.strip()}")
+        instructions.append(f"Modify All comment: {global_comment.strip()}")
     if reviewer_comment.strip():
         instructions.append(f"Reviewer comment: {reviewer_comment.strip()}")
 
@@ -556,6 +557,16 @@ st.set_page_config(
 render_sidebar(on_certcreate=reset_request)
 render_logo()
 st.markdown("<h1>CertCreate</h1>", unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <style>
+    button[id^='apply_'] {background-color:green;color:white;}
+    button[id^='keep_'] {background-color:red;color:white;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     """
@@ -829,7 +840,7 @@ if use_uniform and uniform_template:
         st.session_state.cert_rows = cert_rows
         uniform_template = uniform_edit
 
-st.subheader("💬 Edit All")
+st.subheader("💬 Modify All")
 global_comment = st.text_area(
     "Optional: Enter general comments, tone guidance, or feedback that applies to all certificates.",
     placeholder="e.g., 'Make all certificates sound more formal.'",
@@ -847,7 +858,7 @@ if st.button("🔄 Regenerate All Certificates", key="regen_all"):
             new_rows.append(cert)
     st.session_state.cert_rows = new_rows
     cert_rows = new_rows
-    st.success("Certificates updated using Edit All comment.")
+    st.success("Certificates updated using Modify All comment.")
 
 st.subheader("👁 Review and Modify Individual Certificates")
 final_cert_rows = []
@@ -984,6 +995,7 @@ if st.session_state.get("show_add"):
                 "approved": True,
             }
         )
+        st.session_state.expand_after_split = [len(st.session_state.cert_rows) - 1]
         st.session_state.show_add = False
         safe_rerun()
 
