@@ -11,10 +11,55 @@ SYSTEM_PROMPT = """You are an intelligent assistant built into the certificate g
 Return the result strictly as a JSON list of dictionaries. Each dictionary must contain: name, title, organization, date_raw, commendation. Include an optional partners list if multiple logos or partners are identified."""
 
 
-def ocr_image(path: str) -> str:
-    """Return OCR text from the given image path."""
+def ocr_image(path: str, conf_threshold: int = 10, line_gap: int = 25) -> str:
+    """Return cleaned OCR text from the given image path.
+
+    The function uses ``pytesseract.image_to_data`` to obtain layout
+    information. Words with a confidence score below ``conf_threshold`` are
+    discarded. Remaining words are grouped into lines if they are within
+    ``line_gap`` pixels vertically and then sorted from left to right.
+    """
+
     img = ImageOps.exif_transpose(Image.open(path).convert("L"))
-    return pytesseract.image_to_string(img)
+
+    data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+
+    words = []
+    for text, conf, left, top in zip(
+        data["text"], data["conf"], data["left"], data["top"]
+    ):
+        text = text.strip()
+        try:
+            conf = int(conf)
+        except ValueError:
+            conf = 0
+        if text and conf > conf_threshold:
+            words.append({"text": text, "left": left, "top": top})
+
+    if not words:
+        return ""
+
+    words.sort(key=lambda w: (w["top"], w["left"]))
+    lines = []
+    current_line = []
+    current_top = words[0]["top"]
+
+    for word in words:
+        if abs(word["top"] - current_top) <= line_gap:
+            current_line.append(word)
+        else:
+            lines.append(
+                " ".join(w["text"] for w in sorted(current_line, key=lambda x: x["left"]))
+            )
+            current_line = [word]
+            current_top = word["top"]
+
+    if current_line:
+        lines.append(
+            " ".join(w["text"] for w in sorted(current_line, key=lambda x: x["left"]))
+        )
+
+    return "\n".join(lines)
 
 
 def parse_certificate(text: str) -> list:
