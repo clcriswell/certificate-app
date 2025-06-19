@@ -1,19 +1,14 @@
 # LegAid – Certificate Generator
 
 The certificate generator is now part of **LegAid**, a multi‑page Streamlit application.
-It relies on `pdfminer.six` and `PyMuPDF` for PDF text extraction with an OCR fallback using Tesseract when needed. In addition to text, Word, Excel and image uploads, the tool also accepts RTF documents and more image formats.
-Uploaded images and scanned PDFs are processed with Tesseract OCR (ensure the `tesseract` binary is installed). Generated certificates can be downloaded as Word documents or as PDFs.
+It relies on `pdfminer.six` and `PyMuPDF` for PDF text extraction with Google Vision OCR as a fallback. In addition to text, Word, Excel and image uploads, the tool also accepts RTF documents and more image formats.
+Uploaded images and scanned PDFs are processed through the Google Vision API so no system-level OCR installation is required. Generated certificates can be downloaded as Word documents or as PDFs.
 
 ## Prerequisites
 
-Image uploads rely on external tools:
+Image uploads rely on these secrets:
 
-- **Tesseract OCR** – install the `tesseract` executable and make sure it is in your PATH. On Ubuntu/Debian you can install it with:
-
-  ```bash
-  sudo apt-get update && sudo apt-get install -y tesseract-ocr
-  ```
-
+- **google_vision_key** – add this key to your Streamlit secrets for OCR.
 - **OPENAI_API_KEY** – set this environment variable with your OpenAI API key so the app can parse text.
 
 Run the entire suite with:
@@ -55,7 +50,7 @@ Enable the **Keep Certificate Text Uniformed** checkbox before generating certif
 
 ## 🖼️ Parsing Event Flyers
 
-Use `flyer_ocr_parser.py` to extract certificate fields directly from an event flyer or request image. Provide the path to the image and ensure `tesseract` is installed and the `OPENAI_API_KEY` environment variable is set:
+Use `flyer_ocr_parser.py` to extract certificate fields directly from an event flyer or request image. Provide the path to the image along with the `OPENAI_API_KEY` and `GOOGLE_VISION_KEY` environment variables:
 
 ```bash
 python flyer_ocr_parser.py path/to/flyer.png
