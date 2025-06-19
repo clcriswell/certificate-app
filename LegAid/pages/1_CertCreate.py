@@ -379,6 +379,8 @@ The event date is: {event_date}
 
 Name values must be no longer than {NAME_MAX_CHARS} characters including spaces. Title values must be no longer than {TITLE_MAX_CHARS} characters including spaces. Certificate text should be around {TEXT_MAX_CHARS} characters or fewer and at most {TEXT_MAX_LINES} lines.
 
+If some fields are missing, leave them blank rather than skipping the entry. We still want partial results.
+
 Return ONLY valid JSON.
 """
     else:
@@ -404,6 +406,8 @@ Each certificate must include:
 The event date is: {event_date}
 
 Name values must be no longer than {NAME_MAX_CHARS} characters including spaces. Title values must be no longer than {TITLE_MAX_CHARS} characters including spaces. Certificate text should be around {TEXT_MAX_CHARS} characters or fewer and at most {TEXT_MAX_LINES} lines.
+
+If some fields cannot be determined, leave them empty instead of omitting the certificate entirely.
 
 Return ONLY valid JSON.
 """
