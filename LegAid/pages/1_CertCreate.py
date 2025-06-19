@@ -223,15 +223,31 @@ def normalize_spacing(text: str) -> str:
     cleaned = cleaned.replace(" ,", ",").replace(" .", ".")
     return cleaned.strip()
 
-def enhanced_commendation(name: str, title: str, org: str) -> str:
-    """Return a default commendation around the TEXT_MAX_CHARS length with tone based on event text."""
-    context = st.session_state.get("pdf_text", "").lower()
+def enhanced_commendation(name: str, title: str, org: str, category: str = "") -> str:
+    """Return a concise commendation around the ``TEXT_MAX_CHARS`` length.
 
-    if any(word in context for word in ["memorial", "tribute", "in memory"]):
+    The opening phrase after ``On behalf of the California State Legislature``
+    varies based on the event context or provided ``category`` so it can say
+    "congratulations on", "honoring", "celebrating", etc.
+    """
+
+    context = st.session_state.get("pdf_text", "").lower()
+    category_lower = category.lower()
+
+    if (
+        any(word in context for word in ["memorial", "tribute", "in memory"]) or
+        any(word in category_lower for word in ["memorial", "tribute"])
+    ):
         style = "solemn"
-    elif any(word in context for word in ["veteran", "patriotic", "flag", "military"]):
+    elif (
+        any(word in context for word in ["veteran", "patriotic", "flag", "military"]) or
+        any(word in category_lower for word in ["veteran", "military"])
+    ):
         style = "patriotic"
-    elif any(word in context for word in ["celebration", "festival", "anniversary", "award", "gala", "recognition"]):
+    elif (
+        any(word in context for word in ["celebration", "festival", "anniversary", "award", "gala", "recognition"]) or
+        any(word in category_lower for word in ["celebration", "anniversary", "award", "opening", "congratulation", "festival"])
+    ):
         style = "celebratory"
     else:
         style = "formal"
@@ -240,13 +256,13 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
         opening = "On behalf of the California State Legislature, I solemnly honor"
         closing = "I remember your lasting impact and offer my deepest respect."
     elif style == "patriotic":
-        opening = "On behalf of the California State Legislature, it is my honor to commend"
+        opening = "On behalf of the California State Legislature, I proudly commend"
         closing = "Your devotion to our nation inspires all Californians."
     elif style == "celebratory":
-        opening = "On behalf of the California State Legislature, it is my pleasure to recognize"
+        opening = "On behalf of the California State Legislature, congratulations on"
         closing = "May this celebration bring continued success and joy."
     else:
-        opening = "On behalf of the California State Legislature, it is my honor to recognize"
+        opening = "On behalf of the California State Legislature, I recognize"
         closing = "Your steadfast commitment sets a standard for others."
 
     parts = [opening]
@@ -557,7 +573,7 @@ Return ONLY valid JSON.
             title = ""
 
         if not commendation.strip():
-            commendation = enhanced_commendation(name, title, org)
+            commendation = enhanced_commendation(name, title, org, category)
 
         commendation = enforce_first_person(commendation)
 
@@ -941,7 +957,7 @@ if not st.session_state.started:
                     "Organization": c["Organization"],
                     "Certificate_Text": enforce_first_person(
                         c["Certificate_Text"] or enhanced_commendation(
-                            c["Name"], c["Title"], c["Organization"]
+                            c["Name"], c["Title"], c["Organization"], c.get("Category", "General")
                         )
                     ),
                     "Formatted_Date": format_certificate_date(c.get("Date") or datetime.today().strftime("%B %d, %Y")),

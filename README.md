@@ -34,6 +34,8 @@ When extracting certificate information, the app uses GPT to parse titles and or
 
 If some details are missing from the text, the generator will now produce partial certificates with any fields it can infer. Blank values can be edited later in the interface.
 
+The opening line after "On behalf of the California State Legislature," now changes automatically based on the certificate's category—for example using "congratulations on," "honoring," or "celebrating"—to keep the tone appropriate.
+
 ## ✨ Modify All
 
 The **Modify All** box can modify any certificate field. For example:
