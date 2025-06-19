@@ -820,6 +820,7 @@ source_type = st.session_state.get("source_type", "pasted")
 if st.session_state.started:
     if st.button("🔄 Start New Request"):
         reset_request()
+        safe_rerun()
 
 # Attempt to auto-detect the event date from the text
 auto_date_raw = extract_event_date(pdf_text)
