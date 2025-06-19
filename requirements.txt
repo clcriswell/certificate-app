@@ -9,3 +9,5 @@ pillow
 pytesseract
 reportlab
 docx2txt
+PyMuPDF
+striprtf

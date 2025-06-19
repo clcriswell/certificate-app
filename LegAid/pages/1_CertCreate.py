@@ -20,6 +20,8 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 from PIL import Image, ImageOps
 import pytesseract
+import fitz  # PyMuPDF
+from striprtf.striprtf import rtf_to_text
 import random
 
 client = openai.OpenAI()
@@ -221,7 +223,28 @@ def read_uploaded_file(uploaded_file):
     text = ""
     try:
         if suffix == ".pdf":
-            text = extract_text(tmp_path)
+            try:
+                text = extract_text(tmp_path)
+            except Exception:
+                text = ""
+            if not text.strip():
+                try:
+                    doc = fitz.open(tmp_path)
+                    text = "\n".join(page.get_text() for page in doc)
+                except Exception:
+                    text = ""
+            if not text.strip():
+                try:
+                    doc = fitz.open(tmp_path)
+                    ocr_pages = []
+                    for page in doc:
+                        pix = page.get_pixmap()
+                        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                        img = ImageOps.exif_transpose(img.convert("L"))
+                        ocr_pages.append(pytesseract.image_to_string(img))
+                    text = "\n".join(ocr_pages)
+                except Exception:
+                    text = ""
         elif suffix in {".txt", ".csv"}:
             with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read()
@@ -235,6 +258,12 @@ def read_uploaded_file(uploaded_file):
                     text = "\n".join(p.text for p in doc.paragraphs)
                 except Exception:
                     text = ""
+        elif suffix in {".rtf"}:
+            try:
+                with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
+                    text = rtf_to_text(f.read())
+            except Exception:
+                text = ""
         elif suffix in {".xlsx", ".xls"}:
             df = pd.read_excel(tmp_path, header=None)
             lines = []
@@ -243,7 +272,7 @@ def read_uploaded_file(uploaded_file):
                 if line:
                     lines.append(line)
             text = "\n".join(lines)
-        elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
+        elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif"}:
             try:
                 img = ImageOps.exif_transpose(Image.open(tmp_path).convert("L"))
                 text = pytesseract.image_to_string(img)
@@ -611,7 +640,24 @@ if not st.session_state.started:
     if st.session_state.start_mode == "file":
         st.button("🔄 Start New Request", on_click=reset_request)
         uploaded_file = st.file_uploader(
-            "Upload file", type=["pdf", "docx", "txt", "csv", "xlsx", "xls", "png", "jpg", "jpeg"], key="file_upload"
+            "Upload file",
+            type=[
+                "pdf",
+                "docx",
+                "txt",
+                "csv",
+                "xlsx",
+                "xls",
+                "png",
+                "jpg",
+                "jpeg",
+                "tif",
+                "tiff",
+                "bmp",
+                "gif",
+                "rtf",
+            ],
+            key="file_upload",
         )
         guidance = st.text_area("Extra Guidance (optional)", key="guidance_file")
         use_uniform = st.checkbox(

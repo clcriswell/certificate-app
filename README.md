@@ -1,10 +1,8 @@
 # LegAid – Certificate Generator
 
 The certificate generator is now part of **LegAid**, a multi‑page Streamlit application.
-It still relies on `pdfminer.six` for stable PDF text extraction and supports text, Word, Excel,
-CSV and image uploads. Images are processed using OCR via Tesseract (ensure the
-`tesseract` binary is installed).
-Generated certificates can be downloaded as Word documents or as PDFs.
+It relies on `pdfminer.six` and `PyMuPDF` for PDF text extraction with an OCR fallback using Tesseract when needed. In addition to text, Word, Excel and image uploads, the tool also accepts RTF documents and more image formats.
+Uploaded images and scanned PDFs are processed with Tesseract OCR (ensure the `tesseract` binary is installed). Generated certificates can be downloaded as Word documents or as PDFs.
 
 Run the entire suite with:
 
