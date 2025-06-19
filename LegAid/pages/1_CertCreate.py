@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import json
-import shutil
 import tempfile
 from datetime import datetime
 import re
@@ -20,7 +19,9 @@ from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 import pandas as pd
 from PIL import Image, ImageOps
-import pytesseract
+import base64
+import requests
+from pdf2image import convert_from_path
 import fitz  # PyMuPDF
 from striprtf.striprtf import rtf_to_text
 import random
@@ -28,10 +29,8 @@ import random
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
 
-if not shutil.which("tesseract"):
-    st.error(
-        "Tesseract OCR is not installed or not found in PATH. Install `tesseract-ocr` to enable image uploads."
-    )
+if "google_vision_key" not in st.secrets:
+    st.error("Add `google_vision_key` to your Streamlit secrets to enable OCR.")
     st.stop()
 
 if not os.getenv("OPENAI_API_KEY"):
@@ -83,6 +82,33 @@ def reset_request():
             del st.session_state[k]
     st.session_state.started = False
     st.session_state.start_mode = None
+
+def vision_ocr_image(image_bytes: bytes) -> str:
+    """Return OCR text from image bytes using Google Vision API."""
+    key = st.secrets.get("google_vision_key")
+    if not key:
+        return ""
+    b64 = base64.b64encode(image_bytes).decode()
+    payload = {
+        "requests": [
+            {
+                "image": {"content": b64},
+                "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
+            }
+        ]
+    }
+    try:
+        resp = requests.post(
+            "https://vision.googleapis.com/v1/images:annotate",
+            params={"key": key},
+            json=payload,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["responses"][0].get("fullTextAnnotation", {}).get("text", "")
+    except Exception:
+        return ""
 
 def format_certificate_date(raw_date_str):
     try:
@@ -260,13 +286,12 @@ def read_uploaded_file(uploaded_file):
                     text = ""
             if not text.strip():
                 try:
-                    doc = fitz.open(tmp_path)
+                    pages = convert_from_path(tmp_path)
                     ocr_pages = []
-                    for page in doc:
-                        pix = page.get_pixmap()
-                        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                        img = ImageOps.exif_transpose(img.convert("L"))
-                        ocr_pages.append(pytesseract.image_to_string(img))
+                    for page in pages:
+                        buf = BytesIO()
+                        page.save(buf, format="PNG")
+                        ocr_pages.append(vision_ocr_image(buf.getvalue()))
                     text = "\n".join(ocr_pages)
                 except Exception:
                     text = ""
@@ -299,8 +324,10 @@ def read_uploaded_file(uploaded_file):
             text = "\n".join(lines)
         elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif"}:
             try:
-                img = ImageOps.exif_transpose(Image.open(tmp_path).convert("L"))
-                text = pytesseract.image_to_string(img)
+                img = ImageOps.exif_transpose(Image.open(tmp_path))
+                buf = BytesIO()
+                img.save(buf, format="PNG")
+                text = vision_ocr_image(buf.getvalue())
                 flyer_prefix = (
                     "This is the text from an event flyer. Use layout and wording to infer participants and purpose.\n"
                 )

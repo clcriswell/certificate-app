@@ -6,7 +6,8 @@ python-docx
 python-dateutil
 openpyxl
 pillow
-pytesseract
+requests
+pdf2image
 reportlab
 PyMuPDF
 striprtf
