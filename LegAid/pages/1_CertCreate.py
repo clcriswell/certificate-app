@@ -7,6 +7,7 @@ import re
 from dateutil import parser as date_parser
 from pathlib import Path
 from utils.navigation import render_sidebar, render_logo
+from utils.shared_functions import normalize_date_strings
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -445,6 +446,9 @@ def extract_certificates(event_text, event_date, uniform=False):
     cert_rows = []
     parsed_entries = []
     template_text = ""
+
+    # Normalize any date strings in the OCR text before sending to GPT
+    event_text = normalize_date_strings(event_text)
 
     flyer_note = ""
     if st.session_state.get("source_type") == "flyer":
