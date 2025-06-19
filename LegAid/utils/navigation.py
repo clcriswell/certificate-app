@@ -1,7 +1,6 @@
 import streamlit as st
 from pathlib import Path
 import base64
-from .shared_functions import reset_certcreate_session
 
 # Preload the application logo for reuse
 _logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
@@ -20,9 +19,11 @@ def render_sidebar():
         encoded = base64.b64encode(f.read()).decode()
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
-        if st.button("CertCreate", use_container_width=True):
-            reset_certcreate_session()
-            st.switch_page("pages/1_CertCreate.py")
+        st.page_link(
+            "pages/1_CertCreate.py",
+            label="CertCreate",
+            icon=None,
+        )
 
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
