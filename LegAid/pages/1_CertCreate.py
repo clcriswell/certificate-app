@@ -1360,7 +1360,7 @@ def generate_pdf_certificates(entries):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
             if title_provided:
-                text_start_y = y
+                text_start_y = y - 0.5 * inch
 
         c.setFont("Times-Roman", text_size)
         y = text_start_y
