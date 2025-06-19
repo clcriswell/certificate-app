@@ -25,6 +25,8 @@ streamlit run LegAid/app.py
 
 When extracting certificate information, the app uses GPT to parse titles and organizations from event text. If an organization is hosting the event, its name should **not** be placed in the Title block for certificates associated with the host. Only include "Title of Organization" when an individual or group from that organization is being recognized by the host organization.
 
+If some details are missing from the text, the generator will now produce partial certificates with any fields it can infer. Blank values can be edited later in the interface.
+
 ## ✨ Modify All
 
 The **Modify All** box can modify any certificate field. For example:
