@@ -6,7 +6,7 @@ from datetime import datetime
 import re
 from dateutil import parser as date_parser
 from pathlib import Path
-from utils.navigation import render_sidebar, render_logo
+from utils.navigation import render_sidebar, SMALL_LOGO_HTML
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -18,7 +18,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageOps
 import pytesseract
 import random
 
@@ -144,6 +144,12 @@ def format_display_title(title: str, org: str) -> str:
 
     return title_clean or org_clean
 
+def normalize_spacing(text: str) -> str:
+    """Return text with excess whitespace removed."""
+    cleaned = re.sub(r"\s+", " ", text)
+    cleaned = cleaned.replace(" ,", ",").replace(" .", ".")
+    return cleaned.strip()
+
 def enhanced_commendation(name: str, title: str, org: str) -> str:
     """Return a default commendation around the TEXT_MAX_CHARS length."""
     parts = [
@@ -222,6 +228,12 @@ def read_uploaded_file(uploaded_file):
         elif suffix == ".docx":
             doc = Document(tmp_path)
             text = "\n".join(p.text for p in doc.paragraphs)
+        elif suffix == ".doc":
+            try:
+                import docx2txt
+                text = docx2txt.process(tmp_path)
+            except Exception:
+                text = ""
         elif suffix in {".xlsx", ".xls"}:
             df = pd.read_excel(tmp_path, header=None)
             lines = []
@@ -232,7 +244,8 @@ def read_uploaded_file(uploaded_file):
             text = "\n".join(lines)
         elif suffix in {".png", ".jpg", ".jpeg"}:
             try:
-                text = pytesseract.image_to_string(Image.open(tmp_path))
+                img = ImageOps.exif_transpose(Image.open(tmp_path))
+                text = pytesseract.image_to_string(img)
             except Exception:
                 text = ""
         return text, suffix.lstrip(".")
@@ -371,6 +384,7 @@ Return ONLY valid JSON.
             commendation = commendation.replace("{name}", name)
             commendation = commendation.replace("{title}", title)
             commendation = commendation.replace("{organization}", org)
+            commendation = normalize_spacing(commendation)
         else:
             commendation = parsed.get("commendation") or ""
 
@@ -411,7 +425,7 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
 
     prompt = "\n".join(instructions)
     system = (
-        "You update certificate details based on reviewer comments. "
+        "You update certificate details based on reviewer comments and correct grammar. "
         f"Name must be \u2264 {NAME_MAX_CHARS} characters. Title must be \u2264 {TITLE_MAX_CHARS} characters. "
         f"Certificate text must not exceed {TEXT_MAX_CHARS} characters and {TEXT_MAX_LINES} lines. "
         "Return ONLY valid JSON with keys name, title, organization, date_raw, commendation."
@@ -486,7 +500,7 @@ def apply_global_comment(cert_rows, global_comment):
 def improve_certificate(cert):
     """Use GPT to suggest improvements for a manually entered certificate."""
     system = (
-        "You suggest concise improvements for a certificate entry. "
+        "You suggest concise improvements and correct grammar for a certificate entry. "
         f"Name must be <= {NAME_MAX_CHARS} characters. "
         f"Title must be <= {TITLE_MAX_CHARS} characters. "
         f"Certificate text must be <= {TEXT_MAX_CHARS} characters and {TEXT_MAX_LINES} lines. "
@@ -533,10 +547,14 @@ def split_certificate(index):
     )
     st.session_state.expand_after_split = [index, index + 1]
 
-st.set_page_config(layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(
+    layout="centered",
+    initial_sidebar_state="expanded",
+    page_title="CertCreate",
+    page_icon=None,
+)
 render_sidebar(on_certcreate=reset_request)
-render_logo()
-st.title("🗂️ CertCreate")
+st.markdown(f"<h1>{SMALL_LOGO_HTML} CertCreate</h1>", unsafe_allow_html=True)
 
 st.markdown(
     """
@@ -638,7 +656,7 @@ if not st.session_state.started:
                 "Date (e.g., May 31, 2024)", value=cert.get("Date", ""), key=f"m_date_{i}"
             )
 
-            if st.button("Make Improvements", key=f"improve_{i}"):
+            if st.button("Ask LegAid to Make Improvements", key=f"improve_{i}"):
                 improved = improve_certificate(cert)
                 st.session_state[f"improved_{i}"] = improved
                 safe_rerun()
@@ -649,8 +667,16 @@ if not st.session_state.started:
                     st.markdown("##### Suggested Improvements")
                 with right:
                     c1, c2 = st.columns(2)
-                    apply_btn = c1.button("Apply Improvements", key=f"apply_{i}")
+                    apply_btn = c1.button("Apply", key=f"apply_{i}")
                     keep_btn = c2.button("Keep Original", key=f"keep_{i}")
+                    c1.markdown(
+                        f"<style>button#apply_{i} {{background-color:green;color:white;}}</style>",
+                        unsafe_allow_html=True,
+                    )
+                    c2.markdown(
+                        f"<style>button#keep_{i} {{background-color:red;color:white;}}</style>",
+                        unsafe_allow_html=True,
+                    )
                 preview = certificate_preview_html(
                     st.session_state[f"improved_{i}"]["name"],
                     st.session_state[f"improved_{i}"]["title"],
@@ -798,7 +824,7 @@ if use_uniform and uniform_template:
                 .replace("{title}", cert["Title"])
                 .replace("{organization}", cert["Organization"])
             )
-            cert["Certificate_Text"] = text
+            cert["Certificate_Text"] = normalize_spacing(text)
         st.session_state.cert_rows = cert_rows
         uniform_template = uniform_edit
 
@@ -880,7 +906,7 @@ for i, cert in enumerate(cert_rows, 1):
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
 
-        if st.button("🔄 ReCreate Certificate", key=f"regen_{i}"):
+        if st.button("🔄 ReCreate", key=f"regen_{i}"):
             if indiv_comment.strip():
                 try:
                     apply_global_comment([cert], global_comment)
@@ -960,6 +986,7 @@ if st.session_state.get("show_add"):
         st.session_state.show_add = False
         safe_rerun()
 
+st.markdown("<br><br>", unsafe_allow_html=True)
 
 def generate_word_certificates(entries):
     doc = Document()
@@ -991,26 +1018,29 @@ def generate_word_certificates(entries):
         title_size = TITLE_MAX_SIZE if display_title.strip() else 0
         text_size = TEXT_MAX_SIZE
 
-        p_name = doc.add_paragraph(entry["Name"])
+        p_name = doc.add_paragraph()
+        run_name = p_name.add_run(entry["Name"])
         p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_name.runs[0].bold = True
-        p_name.runs[0].font.name = "Times New Roman"
-        p_name.runs[0].font.size = Pt(name_size)
+        run_name.bold = True
+        run_name.font.name = "Times New Roman"
+        run_name.font.size = Pt(name_size)
         p_name.paragraph_format.space_after = Pt(3)
 
         display_title = format_display_title(entry["Title"], entry["Organization"])
         if display_title.strip():
-            p_title = doc.add_paragraph(display_title)
+            p_title = doc.add_paragraph()
+            run_title = p_title.add_run(display_title)
             p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_title.runs[0].bold = True
-            p_title.runs[0].font.name = "Times New Roman"
-            p_title.runs[0].font.size = Pt(title_size)
+            run_title.bold = True
+            run_title.font.name = "Times New Roman"
+            run_title.font.size = Pt(title_size)
 
-        p_text = doc.add_paragraph(entry["Certificate_Text"])
+        p_text = doc.add_paragraph()
+        run_text = p_text.add_run(entry["Certificate_Text"])
         p_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p_text.paragraph_format.space_before = Pt(18)
-        p_text.runs[0].font.name = "Times New Roman"
-        p_text.runs[0].font.size = Pt(text_size)
+        run_text.font.name = "Times New Roman"
+        run_text.font.size = Pt(text_size)
 
         # Spacer to position date block starting at 8.25" from the top
         spacer_gap = doc.add_paragraph()
@@ -1018,12 +1048,13 @@ def generate_word_certificates(entries):
         spacer_gap.add_run(" ").font.size = Pt(12)
 
         for idx, line in enumerate(entry["Formatted_Date"].split("\n")):
-            p_date = doc.add_paragraph(line)
+            p_date = doc.add_paragraph()
+            run_date = p_date.add_run(line)
             p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_date.paragraph_format.space_before = Pt(0 if idx > 0 else 0)
             p_date.paragraph_format.space_after = Pt(0)
-            p_date.runs[0].font.name = "Times New Roman"
-            p_date.runs[0].font.size = Pt(entry.get("Date_Size", 12))
+            run_date.font.name = "Times New Roman"
+            run_date.font.size = Pt(entry.get("Date_Size", 12))
 
         # Spacer before signature block (1.25")
         sig_spacer = doc.add_paragraph()
@@ -1126,7 +1157,7 @@ else:
     doc.save(tmp_docx.name)
     tmp_docx.seek(0)
     if st.download_button(
-        label="CreateCert Word",
+        label="**CreateCert** Word Doc",
         data=tmp_docx.read(),
         file_name="Certificates.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1141,7 +1172,7 @@ else:
 
     pdf_bytes = generate_pdf_certificates(approved_entries)
     if st.download_button(
-        label="CreateCert PDF",
+        label="**CreateCert** PDF",
         data=pdf_bytes,
         file_name="Certificates.pdf",
         mime="application/pdf",
