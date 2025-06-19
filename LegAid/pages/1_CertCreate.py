@@ -1360,10 +1360,10 @@ def generate_pdf_certificates(entries):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
             if title_provided:
-                y = title_start_y
+                y = title_start_y - 0.5 *inch
 
         c.setFont("Times-Roman", text_size)
-        y = text_start_y - 0.5 * inch
+        y = text_start_y
         for line in wrap_text(entry["Certificate_Text"], "Times-Roman", text_size, avail_width):
             c.drawCentredString(center_x, y, line)
             y -= text_size * 1.2
