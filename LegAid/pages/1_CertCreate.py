@@ -1336,7 +1336,7 @@ def generate_pdf_certificates(entries):
         text_start_y = name_y
         if display_title.strip():
             c.setFont("Times-Bold", title_size)
-            y = name_y - 0.5 * inch
+            y = name_y - 1.0 * inch
             for line in wrap_text(display_title, "Times-Bold", title_size, avail_width):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
