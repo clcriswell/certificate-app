@@ -373,7 +373,14 @@ Return ONLY valid JSON.
             template_text = template_text.rstrip(" .") + " Wish you the best."
         parsed_entries = data.get("certificates", [])
     else:
-        parsed_entries = data
+        # handle both raw list and wrapped dict formats
+        if isinstance(data, dict) and "certificates" in data:
+            parsed_entries = data.get("certificates", [])
+        else:
+            parsed_entries = data
+
+    if not isinstance(parsed_entries, list):
+        raise ValueError("Parsed entries must be a list of certificates")
 
     for parsed in parsed_entries:
         name = parsed.get("name") or "Recipient"
