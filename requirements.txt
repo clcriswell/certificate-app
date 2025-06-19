@@ -8,3 +8,4 @@ openpyxl
 pillow
 pytesseract
 reportlab
+docx2txt

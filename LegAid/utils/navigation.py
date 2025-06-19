@@ -2,6 +2,17 @@ import streamlit as st
 from pathlib import Path
 import base64
 
+# Preload the application logo for reuse
+_logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
+with open(_logo_path, "rb") as _f:
+    _encoded_logo = base64.b64encode(_f.read()).decode()
+
+# Small inline logo HTML used in page headers
+SMALL_LOGO_HTML = (
+    f"<img src='data:image/png;base64,{_encoded_logo}' width='20' "
+    "style='vertical-align:middle;margin-right:4px;'>"
+)
+
 
 def render_sidebar(on_certcreate=None):
     st.markdown(
