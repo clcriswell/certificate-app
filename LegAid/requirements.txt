@@ -8,3 +8,5 @@ openpyxl
 pillow
 pytesseract
 reportlab
+PyMuPDF
+striprtf
