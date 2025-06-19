@@ -38,3 +38,13 @@ After entering a comment, click **Recreate All Certificates** to apply the chang
 ## 🏷️ Uniform Certificate Text
 
 Enable the **Keep Certificate Text Uniformed** checkbox before generating certificates if you want identical language across every entry. The app will ask GPT to create a single certificate text template and automatically fill in each certificate's name, title, and organization.
+
+## 🖼️ Parsing Event Flyers
+
+Use `flyer_ocr_parser.py` to extract certificate fields directly from an event flyer or request image. Provide the path to the image and ensure `tesseract` is installed and the `OPENAI_API_KEY` environment variable is set:
+
+```bash
+python flyer_ocr_parser.py path/to/flyer.png
+```
+
+The script performs OCR on the image, sends the text to GPT for analysis, and prints a JSON dictionary with the extracted name, title, organization, date, commendation, and any partners found.
