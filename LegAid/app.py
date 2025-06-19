@@ -24,12 +24,13 @@ st.markdown(
     <style>
     a[data-testid="stPageLink"] {{
         display:inline-block;
-        padding:0.5rem 1rem;
-        background:#eee;
-        border:1px solid #ccc;
+        padding:0.75rem 1.25rem;
+        margin:0 0.1rem;
+        background:#004cbd;
+        color:#fff !important;
         border-radius:4px;
-        margin:0 0.2rem;
         text-decoration:none;
+        font-weight:600;
     }}
     </style>
     """,
