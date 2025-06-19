@@ -710,7 +710,7 @@ def split_certificate(index):
 
 st.set_page_config(
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
     page_title="CertCreate",
     page_icon=None,
 )
