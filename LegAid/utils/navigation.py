@@ -21,17 +21,6 @@ def render_sidebar():
         """
         <style>
         a[data-testid="stPageLink"],
-        button#nav_certcreate {
-            display:inline-block;
-            padding:0.75rem 1.25rem;
-            margin:0 0.1rem;
-            background:#004cbd;
-            color:#fff !important;
-            border-radius:4px;
-            text-decoration:none;
-            font-weight:600;
-            border:none;
-        }
         </style>
         """,
         unsafe_allow_html=True,
