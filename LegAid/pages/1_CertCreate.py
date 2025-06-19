@@ -554,7 +554,7 @@ st.set_page_config(
     page_title="CertCreate",
     page_icon=None,
 )
-render_sidebar(on_certcreate=reset_request)
+render_sidebar()
 render_logo()
 st.markdown("<h1>CertCreate</h1>", unsafe_allow_html=True)
 
