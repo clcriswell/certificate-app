@@ -1,6 +1,4 @@
 import streamlit as st
-from pathlib import Path
-from utils.shared_functions import example_helper
 from utils.navigation import render_sidebar, render_logo
 
 

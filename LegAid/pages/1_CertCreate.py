@@ -1047,13 +1047,13 @@ for i, cert in enumerate(cert_rows, 1):
                 f"<div style='text-align:center; font-size:{int(date_size)}px; margin-top:{mt}px;'>{line}</div>"
             )
         lines.append(
-            f"<div style='text-align:right; font-size:12px; margin-top:0;'>_____________________________________</div>"
+            "<div style='text-align:right; font-size:12px; margin-top:0;'>_____________________________________</div>"
         )
         lines.append(
-            f"<div style='text-align:right; font-size:14px; margin-top:0;'>Stan Ellis</div>"
+            "<div style='text-align:right; font-size:14px; margin-top:0;'>Stan Ellis</div>"
         )
         lines.append(
-            f"<div style='text-align:right; font-size:14px; margin-top:0;'>Assemblyman, 32nd District</div>"
+            "<div style='text-align:right; font-size:14px; margin-top:0;'>Assemblyman, 32nd District</div>"
         )
         st.markdown("<br>".join(lines), unsafe_allow_html=True)
 

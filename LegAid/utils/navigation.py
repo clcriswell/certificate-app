@@ -14,9 +14,6 @@ def render_sidebar():
         "<style>[data-testid='stSidebarNav']{display:none;}</style>",
         unsafe_allow_html=True,
     )
-    logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
-    with open(logo_path, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
         st.page_link(
