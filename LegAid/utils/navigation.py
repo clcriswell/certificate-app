@@ -10,17 +10,35 @@ with open(_logo_path, "rb") as _f:
 
 
 def render_sidebar():
+    """Render sidebar with mobile auto-close and navigation links."""
     st.markdown(
         "<style>[data-testid='stSidebarNav']{display:none;}</style>",
         unsafe_allow_html=True,
     )
+
+    # JavaScript to collapse the sidebar on small screens after a page load
+    st.markdown(
+        """
+        <script>
+        function closeSidebarIfMobile() {
+            const btn = window.parent.document.querySelector('button[title="Hide sidebar"]');
+            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+            if (window.innerWidth <= 768 && btn && sidebar?.getAttribute('aria-expanded') === 'true') {
+                btn.click();
+            }
+        }
+        window.addEventListener('load', closeSidebarIfMobile);
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
-        st.page_link(
-            "pages/1_CertCreate.py",
-            label="CertCreate",
-            icon=None,
-        )
+
+        if st.button("CertCreate", key="nav_certcreate"):
+            st.session_state["certcreate_reset"] = True
+            st.switch_page("pages/1_CertCreate.py")
 
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
