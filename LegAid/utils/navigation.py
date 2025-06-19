@@ -16,7 +16,28 @@ def render_sidebar():
         unsafe_allow_html=True,
     )
 
-    # JavaScript to collapse the sidebar on small screens after a page load
+    # Style the navigation links and CertCreate button consistently
+    st.markdown(
+        """
+        <style>
+        a[data-testid="stPageLink"],
+        button#nav_certcreate {
+            display:inline-block;
+            padding:0.75rem 1.25rem;
+            margin:0 0.1rem;
+            background:#004cbd;
+            color:#fff !important;
+            border-radius:4px;
+            text-decoration:none;
+            font-weight:600;
+            border:none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # JavaScript to collapse the sidebar on small screens
     st.markdown(
         """
         <script>
@@ -28,6 +49,11 @@ def render_sidebar():
             }
         }
         window.addEventListener('load', closeSidebarIfMobile);
+        window.parent.document.addEventListener('click', function(e) {
+            if (e.target.closest('a[data-testid="stPageLink"], #nav_certcreate')) {
+                setTimeout(closeSidebarIfMobile, 0);
+            }
+        });
         </script>
         """,
         unsafe_allow_html=True,
