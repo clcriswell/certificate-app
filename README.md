@@ -34,7 +34,7 @@ When extracting certificate information, the app uses GPT to parse titles and or
 
 If some details are missing from the text, the generator will now produce partial certificates with any fields it can infer. Blank values can be edited later in the interface.
 
-Every commendation now begins with "On behalf of the California State Legislature, {opening}" where the opening phrase—such as "congratulations on," "honoring," or "celebrating"—is chosen based on the certificate's category.
+When the app generates the commendation text, the opening phrase after "On behalf of the California State Legislature"—such as "congratulations on," "honoring," or "celebrating"—is chosen automatically based on the certificate's category.
 
 ## ✨ Modify All
 
