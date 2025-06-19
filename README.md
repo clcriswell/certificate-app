@@ -47,4 +47,4 @@ Use `flyer_ocr_parser.py` to extract certificate fields directly from an event f
 python flyer_ocr_parser.py path/to/flyer.png
 ```
 
-The script performs OCR on the image, sends the text to GPT for analysis, and prints a JSON dictionary with the extracted name, title, organization, date, commendation, and any partners found.
+The script performs OCR on the image, sends the text to GPT for analysis, and prints a JSON **list** of dictionaries with the extracted name, title, organization, date, commendation, and any partners found. Only real individuals or organizations will be returned.

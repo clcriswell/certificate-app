@@ -6,9 +6,9 @@ from PIL import Image, ImageOps
 import pytesseract
 import openai
 
-SYSTEM_PROMPT = """You are an intelligent assistant built into the certificate generation app. A user uploads an event flyer or certificate request image. Your task is to analyze the image to extract all useful certificate fields, then reason about the event/requests's purpose and generate a commendation message accordingly.
+SYSTEM_PROMPT = """You are an intelligent assistant built into the certificate generation app. A user uploads an event flyer or certificate request image. Analyze the flyer text to identify only real, explicitly named individuals or organizations. Do not create placeholder names or titles. If a host or sponsoring organization is clearly listed, produce a certificate entry for that organization. Skip certificates for event themes or generic phrases and use patriotic or formal language in each commendation.
 
-Return the result strictly as JSON with keys: name, title, organization, date_raw, commendation, and an optional partners list if multiple logos or partners are identified."""
+Return the result strictly as a JSON list of dictionaries. Each dictionary must contain: name, title, organization, date_raw, commendation. Include an optional partners list if multiple logos or partners are identified."""
 
 
 def ocr_image(path: str) -> str:
@@ -17,8 +17,8 @@ def ocr_image(path: str) -> str:
     return pytesseract.image_to_string(img)
 
 
-def parse_certificate(text: str) -> dict:
-    """Call the OpenAI API to parse certificate data from text."""
+def parse_certificate(text: str) -> list:
+    """Call the OpenAI API to parse certificate data from text and return a list of certificate dictionaries."""
     client = openai.OpenAI()
     response = client.chat.completions.create(
         model="gpt-4o",
