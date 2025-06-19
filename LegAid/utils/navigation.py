@@ -2,6 +2,8 @@ import streamlit as st
 from pathlib import Path
 import base64
 
+from .shared_functions import reset_certcreate_session
+
 # Preload the application logo for reuse
 _logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
 with open(_logo_path, "rb") as _f:
@@ -20,7 +22,17 @@ def render_sidebar():
     st.markdown(
         """
         <style>
-        a[data-testid="stPageLink"],
+        a[data-testid="stPageLink"], [data-testid='stSidebar'] button {
+            display:block;
+            padding:0.75rem 1.25rem;
+            margin:0 0 0.25rem;
+            background:#004cbd;
+            color:#fff !important;
+            border-radius:4px;
+            text-decoration:none;
+            font-weight:600;
+            border:none;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -53,8 +65,8 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        if st.page_link("pages/1_CertCreate.py", label="SpeechCreate", icon=None):
-            st.session_state["certcreate_reset"] = True
+        if st.button("CertCreate", key="nav_certcreate"):
+            reset_certcreate_session()
             st.switch_page("pages/1_CertCreate.py")
 
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
@@ -68,10 +80,9 @@ def render_sidebar():
 
 
 def render_logo():
-    logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
-    with open(logo_path, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
+    """Render the application logo in the top-right corner."""
     st.markdown(
-        f"<a href='../app.py'><img src='data:image/png;base64,{encoded}' width='160' style='position:absolute;top:10px;right:10px;z-index:1000;'></a>",
+        f"<a href='../app.py'><img src='data:image/png;base64,{_encoded_logo}' width='160' style='position:absolute;top:10px;right:10px;z-index:1000;'></a>",
         unsafe_allow_html=True,
     )
+
