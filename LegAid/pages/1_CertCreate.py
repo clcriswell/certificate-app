@@ -84,6 +84,9 @@ def reset_request():
     st.session_state.started = False
     st.session_state.start_mode = None
 
+if st.session_state.pop("certcreate_reset", False):
+    reset_request()
+
 def vision_ocr_image(image_bytes: bytes) -> str:
     """Return OCR text from image bytes using Google Vision API."""
     key = st.secrets.get("google_vision_key")
@@ -710,7 +713,7 @@ def split_certificate(index):
 
 st.set_page_config(
     layout="centered",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="expanded",
     page_title="CertCreate",
     page_icon=None,
 )
