@@ -926,7 +926,6 @@ for i, cert in enumerate(cert_rows, 1):
     kwargs = {"expanded": True} if i-1 in expanded_indices else {}
     with st.expander(
         f"📜 {cert['Name']} – {display_title}",
-        key=f"expander_{i}",
         **kwargs,
     ):
 
