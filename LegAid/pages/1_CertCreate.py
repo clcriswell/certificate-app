@@ -6,7 +6,7 @@ from datetime import datetime
 import re
 from dateutil import parser as date_parser
 from pathlib import Path
-from utils.navigation import render_sidebar, render_logo, SMALL_LOGO_HTML
+from utils.navigation import render_sidebar, SMALL_LOGO_HTML
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -549,7 +549,6 @@ def split_certificate(index):
 
 st.set_page_config(layout="centered", initial_sidebar_state="expanded")
 render_sidebar(on_certcreate=reset_request)
-render_logo()
 st.markdown(f"<h1>{SMALL_LOGO_HTML} CertCreate</h1>", unsafe_allow_html=True)
 
 st.markdown(
