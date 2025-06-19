@@ -5,7 +5,7 @@ from utils.navigation import render_sidebar, render_logo
 
 st.set_page_config(
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
     page_title="ResponseCreate",
     page_icon=None,
 )

@@ -54,6 +54,8 @@ def render_sidebar():
                 setTimeout(closeSidebarIfMobile, 0);
             }
         });
+        // Immediately check on script load in case the load event already fired
+        closeSidebarIfMobile();
         </script>
         """,
         unsafe_allow_html=True,
