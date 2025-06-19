@@ -1,5 +1,4 @@
 import json
-import re
 from collections import Counter
 from pathlib import Path
 
@@ -15,7 +14,6 @@ def summarize_logs(log_dir="logs", output_file="learned_preferences.json", top_n
         return
 
     endings = Counter()
-    structures = Counter()
     tone_notes = set()
 
     for log_file in log_path.glob("cert_logs_*.jsonl"):
@@ -25,7 +23,6 @@ def summarize_logs(log_dir="logs", output_file="learned_preferences.json", top_n
                     entry = json.loads(line)
                     if not entry.get("approved"): continue
                     final_text = entry.get("final_commendation", "").strip()
-                    original_text = entry.get("original_commendation", "").strip()
 
                     # Phrase frequency
                     phrases = extract_phrases(final_text)
