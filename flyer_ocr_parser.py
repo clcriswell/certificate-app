@@ -5,6 +5,17 @@ import sys
 from PIL import Image, ImageOps
 import pytesseract
 import openai
+import shutil
+
+if shutil.which("tesseract") is None:
+    raise RuntimeError(
+        "Tesseract OCR is required but was not found in PATH. Install `tesseract-ocr`."
+    )
+
+if not os.getenv("OPENAI_API_KEY"):
+    raise RuntimeError(
+        "OPENAI_API_KEY environment variable is not set. Provide your OpenAI API key to continue."
+    )
 
 SYSTEM_PROMPT = """You are an intelligent assistant built into the certificate generation app. A user uploads an event flyer or certificate request image. Analyze the flyer text to identify only real, explicitly named individuals or organizations. Do not create placeholder names or titles. If a host or sponsoring organization is clearly listed, produce a certificate entry for that organization. Skip certificates for event themes or generic phrases and use patriotic or formal language in each commendation.
 

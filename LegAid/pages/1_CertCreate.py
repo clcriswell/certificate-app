@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import shutil
 import tempfile
 from datetime import datetime
 import re
@@ -26,6 +27,18 @@ import random
 
 client = openai.OpenAI()
 OPENAI_MODEL = "gpt-4o"
+
+if not shutil.which("tesseract"):
+    st.error(
+        "Tesseract OCR is not installed or not found in PATH. Install `tesseract-ocr` to enable image uploads."
+    )
+    st.stop()
+
+if not os.getenv("OPENAI_API_KEY"):
+    st.error(
+        "OPENAI_API_KEY environment variable is not set. Add your key in Settings → Secrets to continue."
+    )
+    st.stop()
 
 # Font and text constraints
 NAME_MIN_SIZE = 24

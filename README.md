@@ -4,6 +4,18 @@ The certificate generator is now part of **LegAid**, a multi‑page Streamlit ap
 It relies on `pdfminer.six` and `PyMuPDF` for PDF text extraction with an OCR fallback using Tesseract when needed. In addition to text, Word, Excel and image uploads, the tool also accepts RTF documents and more image formats.
 Uploaded images and scanned PDFs are processed with Tesseract OCR (ensure the `tesseract` binary is installed). Generated certificates can be downloaded as Word documents or as PDFs.
 
+## Prerequisites
+
+Image uploads rely on external tools:
+
+- **Tesseract OCR** – install the `tesseract` executable and make sure it is in your PATH. On Ubuntu/Debian you can install it with:
+
+  ```bash
+  sudo apt-get update && sudo apt-get install -y tesseract-ocr
+  ```
+
+- **OPENAI_API_KEY** – set this environment variable with your OpenAI API key so the app can parse text.
+
 Run the entire suite with:
 
 ```bash
