@@ -1322,6 +1322,7 @@ def generate_pdf_certificates(entries):
         name_size = determine_name_font_size(entry["Name"])
         display_title = format_display_title(entry["Title"], entry["Organization"])
         title_size = TITLE_MAX_SIZE if display_title.strip() else 0
+        title_provided = bool(entry.get("Title", "").strip())
         text_size = TEXT_MAX_SIZE
         date_size = 12
 
@@ -1332,17 +1333,18 @@ def generate_pdf_certificates(entries):
         name_y = page_height - 5.0 * inch
         c.drawCentredString(center_x, name_y, entry["Name"])
 
+        text_start_y = name_y
         if display_title.strip():
             c.setFont("Times-Bold", title_size)
             y = name_y - 0.5 * inch
             for line in wrap_text(display_title, "Times-Bold", title_size, avail_width):
                 c.drawCentredString(center_x, y, line)
                 y -= title_size * 1.2
-        else:
-            y = name_y
+            if title_provided:
+                text_start_y = y
 
         c.setFont("Times-Roman", text_size)
-        y -= 0.25 * inch
+        y = text_start_y - 0.25 * inch
         for line in wrap_text(entry["Certificate_Text"], "Times-Roman", text_size, avail_width):
             c.drawCentredString(center_x, y, line)
             y -= text_size * 1.2
