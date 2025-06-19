@@ -380,7 +380,11 @@ Return ONLY valid JSON.
             parsed_entries = data
 
     if not isinstance(parsed_entries, list):
-        raise ValueError("Parsed entries must be a list of certificates")
+        # Allow a single certificate dictionary by wrapping it in a list
+        if isinstance(parsed_entries, dict):
+            parsed_entries = [parsed_entries]
+        else:
+            raise ValueError("Parsed entries must be a list of certificates")
 
     for parsed in parsed_entries:
         name = parsed.get("name") or "Recipient"
