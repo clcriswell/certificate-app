@@ -547,7 +547,12 @@ def split_certificate(index):
     )
     st.session_state.expand_after_split = [index, index + 1]
 
-st.set_page_config(layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(
+    layout="centered",
+    initial_sidebar_state="expanded",
+    page_title="CertCreate",
+    page_icon=None,
+)
 render_sidebar(on_certcreate=reset_request)
 render_logo()
 st.markdown(f"<h1>{SMALL_LOGO_HTML} CertCreate</h1>", unsafe_allow_html=True)

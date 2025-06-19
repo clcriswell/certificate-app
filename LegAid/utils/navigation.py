@@ -24,20 +24,25 @@ def render_sidebar(on_certcreate=None):
         encoded = base64.b64encode(f.read()).decode()
     logo_small = f"<img src='data:image/png;base64,{encoded}' width='20' style='vertical-align:middle;margin-right:4px;'>"
     with st.sidebar:
-        st.page_link("app.py", label="LegAid")
+        st.page_link("app.py", label="LegAid", icon=None)
         if on_certcreate:
             st.button("CertCreate", on_click=on_certcreate)
         else:
-            st.markdown(logo_small, unsafe_allow_html=True)
-            st.page_link("pages/1_CertCreate.py", label="CertCreate")
-        st.markdown(logo_small, unsafe_allow_html=True)
-        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate")
-        st.markdown(logo_small, unsafe_allow_html=True)
-        st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate")
-        st.markdown(logo_small, unsafe_allow_html=True)
-        st.page_link("pages/4_LegTrack.py", label="LegTrack")
-        st.markdown(logo_small, unsafe_allow_html=True)
-        st.page_link("pages/5_MailCreate.py", label="MailCreate")
+st.markdown(logo_small, unsafe_allow_html=True)
+st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+
+st.markdown(logo_small, unsafe_allow_html=True)
+st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+
+st.markdown(logo_small, unsafe_allow_html=True)
+st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
+
+st.markdown(logo_small, unsafe_allow_html=True)
+st.page_link("pages/4_LegTrack.py", label="LegTrack", icon=None)
+
+st.markdown(logo_small, unsafe_allow_html=True)
+st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
+
 
 
 def render_logo():

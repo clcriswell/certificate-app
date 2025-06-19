@@ -38,18 +38,20 @@ st.markdown(
 )
 
 col1, col2, col3, col4, col5 = st.columns(5)
+
 with col1:
     st.markdown(logo_small, unsafe_allow_html=True)
-    st.page_link("pages/1_CertCreate.py", label="CertCreate")
+    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
 with col2:
     st.markdown(logo_small, unsafe_allow_html=True)
-    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate")
+    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 with col3:
     st.markdown(logo_small, unsafe_allow_html=True)
-    st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate")
+    st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 with col4:
     st.markdown(logo_small, unsafe_allow_html=True)
-    st.page_link("pages/4_LegTrack.py", label="LegTrack")
+    st.page_link("pages/4_LegTrack.py", label="LegTrack", icon=None)
 with col5:
     st.markdown(logo_small, unsafe_allow_html=True)
-    st.page_link("pages/5_MailCreate.py", label="MailCreate")
+    st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
+
