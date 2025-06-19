@@ -751,6 +751,10 @@ render_sidebar()
 render_logo()
 st.markdown("<h1>CertCreate</h1>", unsafe_allow_html=True)
 
+# Centered Start New Request button beneath the logo
+center_col = st.columns([1, 1, 1])[1]
+center_col.button("🔄 Start New Request", on_click=reset_request, key="start_new_top", use_container_width=True)
+
 st.markdown(
     """
     <style>
@@ -791,7 +795,6 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "file":
-        st.button("🔄 Start New Request", on_click=reset_request)
         uploaded_file = st.file_uploader(
             "Upload file",
             type=[
@@ -839,7 +842,6 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "paste":
-        st.button("🔄 Start New Request", on_click=reset_request)
         text_input = st.text_area("Paste certificate request text here", height=300, key="paste_text")
         guidance = st.text_area("Extra Guidance (optional)", key="guidance_paste")
         use_uniform = st.checkbox(
@@ -863,7 +865,6 @@ if not st.session_state.started:
         st.stop()
 
     if st.session_state.start_mode == "manual":
-        st.button("🔄 Start New Request", on_click=reset_request)
         if "manual_certs" not in st.session_state:
             st.session_state.manual_certs = [
                 {"Name": "", "Title": "", "Organization": "", "Certificate_Text": "", "Date": ""}
@@ -996,11 +997,6 @@ uploaded_file = None
 text_input = None
 pdf_text = st.session_state.get("pdf_text", "")
 source_type = st.session_state.get("source_type", "pasted")
-
-if st.session_state.started:
-    if st.button("🔄 Start New Request"):
-        reset_request()
-        safe_rerun()
 
 # Attempt to auto-detect the event date from the text
 auto_date_raw = extract_event_date(pdf_text)
