@@ -237,8 +237,8 @@ def enhanced_commendation(name: str, title: str, org: str) -> str:
         style = "formal"
 
     if style == "solemn":
-        opening = "On behalf of the California State Legislature, we solemnly honor"
-        closing = "We remember your lasting impact and offer our deepest respect."
+        opening = "On behalf of the California State Legislature, I solemnly honor"
+        closing = "I remember your lasting impact and offer my deepest respect."
     elif style == "patriotic":
         opening = "On behalf of the California State Legislature, it is my honor to commend"
         closing = "Your devotion to our nation inspires all Californians."
