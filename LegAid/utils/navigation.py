@@ -38,25 +38,28 @@ def render_sidebar():
         unsafe_allow_html=True,
     )
 
-    # JavaScript to collapse the sidebar on small screens
+    # JavaScript to toggle the sidebar based on screen width
     st.markdown(
         """
         <script>
-        function closeSidebarIfMobile() {
-            const btn = window.parent.document.querySelector('button[title="Hide sidebar"]');
+        function adjustSidebar() {
+            const hideBtn = window.parent.document.querySelector('button[title="Hide sidebar"]');
+            const showBtn = window.parent.document.querySelector('button[title="Show sidebar"]');
             const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-            if (window.innerWidth <= 768 && btn && sidebar?.getAttribute('aria-expanded') === 'true') {
-                btn.click();
+            const expanded = sidebar?.getAttribute('aria-expanded');
+            if (window.innerWidth <= 768 && expanded === 'true' && hideBtn) {
+                hideBtn.click();
+            } else if (window.innerWidth > 768 && expanded === 'false' && showBtn) {
+                showBtn.click();
             }
         }
-        window.addEventListener('load', closeSidebarIfMobile);
+        window.addEventListener('load', adjustSidebar);
         window.parent.document.addEventListener('click', function(e) {
             if (e.target.closest('a[data-testid="stPageLink"], #nav_certcreate')) {
-                setTimeout(closeSidebarIfMobile, 0);
+                setTimeout(adjustSidebar, 0);
             }
         });
-        // Immediately check on script load in case the load event already fired
-        closeSidebarIfMobile();
+        adjustSidebar();
         </script>
         """,
         unsafe_allow_html=True,
