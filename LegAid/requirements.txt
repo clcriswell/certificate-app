@@ -11,3 +11,13 @@ pdf2image
 reportlab
 PyMuPDF
 striprtf
+httpx
+pydantic
+trafilatura
+faiss-cpu
+numpy
+fastapi
+uvicorn
+tweepy
+aiofiles
+python-dotenv

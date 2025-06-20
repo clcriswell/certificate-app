@@ -12,3 +12,13 @@ reportlab
 docx2txt
 PyMuPDF
 striprtf
+httpx
+pydantic
+trafilatura
+faiss-cpu
+numpy
+fastapi
+uvicorn
+tweepy
+aiofiles
+python-dotenv

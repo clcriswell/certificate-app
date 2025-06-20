@@ -80,6 +80,8 @@ def render_sidebar():
 
         st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
 
+        st.page_link("pages/6_ResearchAssistant.py", label="Research Assistant", icon=None)
+
 
 
 def render_logo():
