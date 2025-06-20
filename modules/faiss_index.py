@@ -6,12 +6,19 @@ import faiss
 
 class SemanticMemory:
     """Persistent FAISS-based vector store for semantic recall."""
-    def __init__(self, index_path: str = "faiss_index.bin", metadata_path: str = "index_meta.pkl"):
+
+    def __init__(
+        self,
+        index_path: str = "faiss_index.bin",
+        metadata_path: str = "index_meta.pkl",
+        max_chars: int = 10000,
+    ):
         self.index_path = index_path
         self.metadata_path = metadata_path
         self.index = None
         self.metadata = []
         self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.max_chars = max_chars
         self.load()
 
     def load(self):
@@ -31,8 +38,18 @@ class SemanticMemory:
             pickle.dump(self.metadata, f)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        response = self.client.embeddings.create(input=texts, model="text-embedding-3-large")
-        return [item.embedding for item in response.data]
+        vectors: list[list[float]] = []
+        for text in texts:
+            truncated = text[: self.max_chars]
+            try:
+                response = self.client.embeddings.create(
+                    input=[truncated], model="text-embedding-3-large"
+                )
+                vectors.append(response.data[0].embedding)
+            except Exception as e:  # noqa: BLE001
+                # Skip texts that fail to embed to prevent loop termination
+                print(f"Embedding failed: {e}")
+        return vectors
 
     def add(self, texts: list[str], tags: list[str]):
         vectors = self.embed(texts)
