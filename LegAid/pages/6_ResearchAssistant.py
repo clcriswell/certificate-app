@@ -33,7 +33,11 @@ query = st.text_input("Enter your research question")
 if st.button("Run Research") and query:
     with st.spinner("Researching, analyzing, and synthesizing..."):
         assistant = build_your_assistant()
-        result = asyncio.run(assistant.run(query))
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(assistant.run(query))
+        finally:
+            loop.close()
         st.success("Research complete.")
         st.components.v1.html(generate_html_report(result), height=700, scrolling=True)
         # Display a collapsible section with a magnifying glass emoji.
