@@ -82,6 +82,8 @@ def render_sidebar():
 
         st.page_link("pages/6_ResearchAssistant.py", label="Research Assistant", icon=None)
 
+        st.page_link("pages/7_ChatMode.py", label="Chat Mode", icon=None)
+
 
 
 def render_logo():

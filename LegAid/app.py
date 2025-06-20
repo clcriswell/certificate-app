@@ -37,7 +37,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col1, col2, col3, col4, col5, col6 = st.columns(6)
+col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
 with col1:
     st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
@@ -51,4 +51,6 @@ with col5:
     st.page_link("pages/5_MailCreate.py", label="MailCreate", icon=None)
 with col6:
     st.page_link("pages/6_ResearchAssistant.py", label="Research Assistant", icon=None)
+with col7:
+    st.page_link("pages/7_ChatMode.py", label="Chat Mode", icon=None)
 
