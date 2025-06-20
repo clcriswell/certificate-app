@@ -42,8 +42,11 @@ class SemanticMemory:
         for text in texts:
             truncated = text[: self.max_chars]
             try:
+                # `text-embedding-3-small` outputs 1536-d vectors which match
+                # the index dimensionality. The large model returns 3072-d
+                # vectors and would fail the FAISS assertion.
                 response = self.client.embeddings.create(
-                    input=[truncated], model="text-embedding-3-large"
+                    input=[truncated], model="text-embedding-3-small"
                 )
                 vectors.append(response.data[0].embedding)
             except Exception as e:  # noqa: BLE001
@@ -53,11 +56,16 @@ class SemanticMemory:
 
     def add(self, texts: list[str], tags: list[str]):
         vectors = self.embed(texts)
+        if not vectors:
+            return
         self.index.add(np.array(vectors).astype("float32"))
-        self.metadata.extend(tags)
+        self.metadata.extend(tags[: len(vectors)])
         self.save()
 
     def search(self, query: str, top_k: int = 5) -> list[tuple[str, float]]:
-        query_vec = self.embed([query])[0]
+        query_vecs = self.embed([query])
+        if not query_vecs:
+            return []
+        query_vec = query_vecs[0]
         D, I = self.index.search(np.array([query_vec]).astype("float32"), top_k)
         return [(self.metadata[i], float(D[0][j])) for j, i in enumerate(I[0])]
