@@ -11,6 +11,7 @@ class SemanticMemory:
         self.metadata_path = metadata_path
         self.index = None
         self.metadata = []
+        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.load()
 
     def load(self):
@@ -30,9 +31,8 @@ class SemanticMemory:
             pickle.dump(self.metadata, f)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        response = openai.Embedding.create(input=texts, model="text-embedding-3-large")
-        return [item["embedding"] for item in response["data"]]
+        response = self.client.embeddings.create(input=texts, model="text-embedding-3-large")
+        return [item.embedding for item in response.data]
 
     def add(self, texts: list[str], tags: list[str]):
         vectors = self.embed(texts)

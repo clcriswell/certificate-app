@@ -3,10 +3,10 @@ import openai
 from typing import List, Dict, Tuple
 
 class ChatBot:
-    """Lightweight wrapper around OpenAI ChatCompletion for quick conversations."""
+    """Lightweight wrapper around the OpenAI chat API for quick conversations."""
 
     def __init__(self, model: str = "gpt-4o", temperature: float = 0.5):
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = model
         self.temperature = temperature
 
@@ -19,7 +19,7 @@ class ChatBot:
         """Generate a single response and return updated history."""
         messages = history[:] if history else []
         messages.append({"role": "user", "content": user_message})
-        response = openai.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature if temperature is None else temperature,
