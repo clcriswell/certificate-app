@@ -24,7 +24,9 @@ if "SERPAPI_API_KEY" in st.secrets:
 if "TWITTER_BEARER_TOKEN" in st.secrets:
     os.environ["TWITTER_BEARER_TOKEN"] = st.secrets["TWITTER_BEARER_TOKEN"]
 
-st.title("\ud83d\udd0d Next-Gen Research Assistant")
+# Use the literal Unicode character instead of a surrogate pair so
+# Streamlit can encode the string without errors.
+st.title("🔍 Next-Gen Research Assistant")
 
 query = st.text_input("Enter your research question")
 
@@ -34,5 +36,6 @@ if st.button("Run Research") and query:
         result = asyncio.run(assistant.run(query))
         st.success("Research complete.")
         st.components.v1.html(generate_html_report(result), height=700, scrolling=True)
-        with st.expander("\ud83d\udd0e View Answer Text"):
+        # Display a collapsible section with a magnifying glass emoji.
+        with st.expander("🔎 View Answer Text"):
             st.write(result["answer"])
