@@ -5,9 +5,9 @@ from pathlib import Path
 import sys
 from utils.navigation import render_sidebar, render_logo
 
-# Ensure the parent directory is on the Python path so ``modules`` can be
+# Ensure the repository root is on the Python path so ``modules`` can be
 # imported when this script is executed directly with Streamlit.
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from modules.research_assistant import build_your_assistant
 from modules.report_view import generate_html_report
