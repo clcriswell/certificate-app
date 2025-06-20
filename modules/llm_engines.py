@@ -8,10 +8,10 @@ class OpenAIEngine:
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     async def chat(self, messages: List[Dict[str, str]]) -> str:
-        response = await openai.ChatCompletion.acreate(
+        response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
