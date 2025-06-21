@@ -22,3 +22,5 @@ uvicorn
 tweepy
 aiofiles
 python-dotenv
+pika
+kubernetes

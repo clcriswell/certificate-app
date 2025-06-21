@@ -84,6 +84,8 @@ def render_sidebar():
 
         st.page_link("pages/7_ChatMode.py", label="Chat Mode", icon=None)
 
+        st.page_link("pages/8_TaskAgent.py", label="Task Agent", icon=None)
+
 
 
 def render_logo():
