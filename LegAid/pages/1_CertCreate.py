@@ -1155,17 +1155,59 @@ for i, cert in enumerate(cert_rows, 1):
         cert["approved"] = approved
         cert["reviewer_comment"] = indiv_comment
 
-        if st.button("🔄 ReCreate", key=f"regen_{i}"):
-            if indiv_comment.strip():
+        regen_key = f"regen_suggestion_{i}"
+        if regen_key not in st.session_state:
+            if st.button("🔄 ReCreate", key=f"regen_{i}"):
                 try:
-                    apply_global_comment([cert], global_comment)
-                    regenerate_certificate(cert, global_comment, indiv_comment)
-                    cert["Name_Size"] = determine_name_font_size(cert["Name"])
-                    cert["Title_Size"] = TITLE_MAX_SIZE if format_display_title(cert["Title"], cert["Organization"]).strip() else 0
+                    preview_cert = regenerate_certificate(cert.copy(), global_comment, indiv_comment)
+                    st.session_state[regen_key] = preview_cert
                 except Exception as e:
                     st.error(str(e))
-            st.session_state.cert_rows[i-1] = cert
-            safe_rerun()
+                safe_rerun()
+        else:
+            left, right = st.columns([3, 2])
+            with left:
+                st.markdown("##### Suggested Revisions")
+            with right:
+                c1, c2 = st.columns(2)
+                apply_btn = c1.button("Apply", key=f"apply_regen_{i}")
+                keep_btn = c2.button("Keep Original", key=f"keep_regen_{i}")
+                c1.markdown(
+                    f"<style>button#apply_regen_{i} {{background-color:#90ee90 !important;color:black !important;}}</style>",
+                    unsafe_allow_html=True,
+                )
+                c2.markdown(
+                    f"<style>button#keep_regen_{i} {{background-color:#f8d7da !important;color:black !important;}}</style>",
+                    unsafe_allow_html=True,
+                )
+            improved = st.session_state[regen_key]
+            highlight = set()
+            if improved["Name"] != cert.get("Name", ""):
+                highlight.add("name")
+            if improved["Title"] != cert.get("Title", "") or improved["Organization"] != cert.get("Organization", ""):
+                highlight.update(["title", "organization"])
+            if improved["Certificate_Text"] != cert.get("Certificate_Text", ""):
+                highlight.add("certificate_text")
+            preview = certificate_preview_html(
+                improved["Name"],
+                improved["Title"],
+                improved["Organization"],
+                improved["Certificate_Text"],
+                date=improved.get("Formatted_Date", ""),
+                highlight=highlight,
+            )
+            st.markdown(preview, unsafe_allow_html=True)
+            if apply_btn:
+                for field in ["Name", "Title", "Organization", "Certificate_Text", "Formatted_Date"]:
+                    cert[field] = improved.get(field, cert.get(field))
+                cert["Name_Size"] = determine_name_font_size(cert["Name"])
+                cert["Title_Size"] = TITLE_MAX_SIZE if format_display_title(cert["Title"], cert["Organization"]).strip() else 0
+                st.session_state.cert_rows[i-1] = cert
+                del st.session_state[regen_key]
+                safe_rerun()
+            if keep_btn:
+                del st.session_state[regen_key]
+                safe_rerun()
 
         st.session_state.cert_rows[i-1] = cert
         final_cert_rows.append(cert)
