@@ -71,9 +71,12 @@ def render_logo():
     """Render the application logo in the top-right corner."""
     st.markdown(
         f'''
-    <a href="/" target="_">
-        <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
-    </a>
-    ''',
-    unsafe_allow_html=True
-)
+        <div style="position: fixed; top: 10px; right: 10px; z-index: 999;">
+            <a href="/" target="_self">
+                <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
+            </a>
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
+
