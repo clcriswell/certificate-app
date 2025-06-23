@@ -21,18 +21,6 @@ st.markdown(
         <img src='data:image/png;base64,{encoded}' width='600' alt='Application logo'>
         <h4 style='margin-top:0; color: gray;'>Tools for Legislative Productivity</h4>
     </div>
-    <style>
-    a[data-testid="stPageLink"], button#home_nav_certcreate {{
-        display:inline-block;
-        padding:0.75rem 1.25rem;
-        margin:0 0.1rem;
-        background:#004cbd;
-        color:#fff !important;
-        border-radius:4px;
-        text-decoration:none;
-        font-weight:600;
-    }}
-    </style>
     """,
     unsafe_allow_html=True,
 )
