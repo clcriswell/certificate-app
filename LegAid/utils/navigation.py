@@ -49,10 +49,7 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        st.markdown(
-            '<st.page_link="pages/1_CertCreate.py" target="_self" style="display:block;padding:6px 10px;text-decoration:none;color:inherit;">CertCreate</a>',
-            unsafe_allow_html=True
-        )
+        st.page_link("pages/1_CreateCreate.py", label="SpeechCreate", icon=None)
             
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
