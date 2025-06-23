@@ -70,7 +70,7 @@ def render_sidebar():
 
         st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
             
-        st.page_link("pages/2_SpeechCreate.py", label="CSpeech", icon=None)
+        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
         st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 
