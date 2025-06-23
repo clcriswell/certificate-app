@@ -11,10 +11,12 @@ st.set_page_config(
 )
 render_sidebar()
 
+# Load and encode logo image
 logo_path = Path(__file__).parent / "Assets" / "MainLogo.png"
 with open(logo_path, "rb") as f:
     encoded = base64.b64encode(f.read()).decode()
 
+# Render the centered logo and title
 st.markdown(
     f"""
     <div style='text-align:center; padding:2rem 0;'>
@@ -25,18 +27,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-import streamlit as st
-
-# Inject custom CSS for styling
+# Inject CSS for button styling and positioning below the logo
 st.markdown("""
 <style>
 .centered-btn-container {
-    position: fixed;
-    top: 80px; /* adjust vertical positioning as needed */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 999;
+    margin-top: 1rem; /* spacing above buttons */
     display: flex;
+    justify-content: center;
     gap: 20px; /* spacing between buttons */
 }
 
@@ -53,11 +50,10 @@ st.markdown("""
 .centered-btn-container button:hover {
     background-color: #4a7bd1;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
-# Create container for centered buttons
+# Place buttons directly below the logo/title block
 st.markdown("""
 <div class='centered-btn-container'>
     <button onclick="window.location.href='/1_CertCreate'">CertCreate</button>
