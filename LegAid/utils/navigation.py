@@ -68,11 +68,11 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        if st.button("CertCreate", key="nav_certcreate"):
+        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+
+        if st.page_link("pages/2_SpeechCreate.py", key="nav_certcreate"):
             reset_certcreate_session()
             st.switch_page("pages/1_CertCreate.py")
-
-        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
         st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 
