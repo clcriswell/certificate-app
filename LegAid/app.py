@@ -25,14 +25,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col1, col2, col3, col4 = st.columns(4)
+col2, col3, col4 = st.columns(3)
 
 with col2:
-    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+    if st.button("CertCreate"):
+        st.switch_page("pages/1_CertCreate.py")
+
 with col3:
-    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+    if st.button("SpeechCreate"):
+        st.switch_page("pages/2_SpeechCreate.py")
+
 with col4:
-    st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
+    if st.button("ResponseCreate"):
+        st.switch_page("pages/3_ResponseCreate.py")
+
 
 
 
