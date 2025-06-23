@@ -49,7 +49,7 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        if st.button("CertCreate", key="nav_certcreate", use_container_width=True):
+        if st.page_link("pages/1_CertCreate.py", key="nav_certcreate", use_container_width=True):
             reset_certcreate_session()
             st.switch_page("pages/1_CertCreate.py")
             
