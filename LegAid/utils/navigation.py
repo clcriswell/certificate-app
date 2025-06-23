@@ -68,12 +68,35 @@ def render_sidebar():
 
 
 def render_logo():
-    """Render the application logo in the top-right corner."""
+    """Render the application logo responsively in the top-right corner."""
     st.markdown(
         f'''
-        <div style="position: fixed; top: 10px; right: 10px; z-index: 999;">
+        <style>
+        .logo-container {{
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 999;
+        }}
+
+        .logo-container img {{
+            width: 200px;
+        }}
+
+        @media only screen and (max-width: 768px) {{
+            .logo-container img {{
+                width: 120px; /* reduce logo size on smaller screens */
+            }}
+            .logo-container {{
+                top: 5px;
+                right: 5px;
+            }}
+        }}
+        </style>
+
+        <div class="logo-container">
             <a href="/" target="_self">
-                <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
+                <img src="data:image/png;base64,{_encoded_logo}" />
             </a>
         </div>
         ''',
