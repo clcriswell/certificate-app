@@ -9,6 +9,14 @@ _logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
 with open(_logo_path, "rb") as _f:
     _encoded_logo = base64.b64encode(_f.read()).decode()
 
+st.markdown(
+    f'''
+    <a href="/" target="_self">
+        <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
+    </a>
+    ''',
+    unsafe_allow_html=True
+)
 
 
 def render_sidebar():
