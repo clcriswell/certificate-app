@@ -88,8 +88,8 @@ def render_logo():
                 width: 120px; /* reduce logo size on smaller screens */
             }}
             .logo-container {{
-                top: 20px;
-                right: 20px;
+                top: 0px;
+                right: 0px;
             }}
         }}
         </style>
