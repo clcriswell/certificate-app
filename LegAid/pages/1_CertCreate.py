@@ -253,7 +253,7 @@ def enhanced_commendation(name: str, title: str, org: str, category: str = "") -
         style = "formal"
 
     if style == "solemn":
-        opening = "On behalf of the California State Legislature, I solemnly honor"
+        opening = "On behalf of the California State Legislature, honoring"
         closing = "I remember your lasting impact and offer my deepest respect."
     elif style == "patriotic":
         opening = "On behalf of the California State Legislature, I proudly commend"
@@ -262,7 +262,7 @@ def enhanced_commendation(name: str, title: str, org: str, category: str = "") -
         opening = "On behalf of the California State Legislature, congratulations on"
         closing = "May this celebration bring continued success and joy."
     else:
-        opening = "On behalf of the California State Legislature, I recognize"
+        opening = "On behalf of the California State Legislature, recognizing"
         closing = "Your steadfast commitment sets a standard for others."
 
     parts = [opening]
@@ -512,7 +512,7 @@ Each certificate must include:
 - organization (if applicable)
 - date_raw (or fallback to event date)
 - category: short (2–3 word) description of the recognition type
-- commendation: 2–3 sentence message that honors their work and ends with well wishes. Start each commendation with "On behalf of the California State Legislature, {{opening}}" where {{opening}} is a brief phrase like "congratulations on", "honoring", or "celebrating" chosen according to the certificate's category.
+- commendation: 3 sentence message that honors their work and ends with well wishes. Start each commendation with "On behalf of the California State Legislature, {{opening}}" where {{opening}} is a brief phrase like "congratulations on", "honoring", or "celebrating" chosen according to the certificate's category.
 - optional: possible_split (true/false)
 - optional: alternatives (dictionary)
 
@@ -753,7 +753,7 @@ st.markdown("<h1>CertCreate</h1>", unsafe_allow_html=True)
 
 # Centered Start New Request button beneath the logo
 center_col = st.columns([1, 1, 1])[1]
-center_col.button("🔄 Start New Request", on_click=reset_request, key="start_new_top", use_container_width=True)
+center_col.button("Start Over", on_click=reset_request, key="start_new_top", use_container_width=True)
 
 st.markdown(
     """
