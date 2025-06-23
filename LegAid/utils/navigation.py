@@ -1,4 +1,4 @@
-import streamlit as st
+timport streamlit as st
 from pathlib import Path
 import base64
 
@@ -68,11 +68,13 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
-
-        if st.page_link("pages/2_SpeechCreate.py", key="nav_certcreate"):
+        st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+        
+        if st.page_link("pages/1_CertCreate.py", key="nav_certcreate"):
             reset_certcreate_session()
             st.switch_page("pages/1_CertCreate.py")
+            
+        st.page_link("pages/2_SpeechCreate.py", label="CSpeech", icon=None)
 
         st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 
