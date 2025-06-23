@@ -56,9 +56,9 @@ st.markdown("""
 # Place buttons directly below the logo/title block
 st.markdown("""
 <div class='centered-btn-container'>
-    <button onclick="window.location.href='1_CertCreate'">Certificates</button>
-    <button onclick="window.location.href='2_SpeechCreate'">Speeches</button>
-    <button onclick="window.location.href='3_ResponseCreate'">Responses</button>
+    <a href='1_CertCreate'><button>Certificates</button></a>
+    <a href='2_SpeechCreate'><button>Speeches</button></a>
+    <a href='3_ResponseCreate'><button>Responses</button></a>
 </div>
 """, unsafe_allow_html=True)
 
