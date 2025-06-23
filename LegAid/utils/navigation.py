@@ -50,7 +50,7 @@ def render_sidebar():
         st.page_link("app.py", label="LegAid", icon=None)
 
         st.markdown(
-            '<a href="/1_CertCreate" target="_self" style="display:block;padding:6px 10px;text-decoration:none;color:inherit;">CertCreate</a>',
+            '<st.page_link="pages/1_CertCreate.py" target="_self" style="display:block;padding:6px 10px;text-decoration:none;color:inherit;">CertCreate</a>',
             unsafe_allow_html=True
         )
             
