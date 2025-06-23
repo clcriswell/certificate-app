@@ -22,7 +22,7 @@ st.markdown(
         <h4 style='margin-top:0; color: gray;'>Tools for Legislative Productivity</h4>
     </div>
     <style>
-    a[data-testid="stPageLink"] {{
+    a[data-testid="stPageLink"], button#home_nav_certcreate {{
         display:inline-block;
         padding:0.75rem 1.25rem;
         margin:0 0.1rem;
@@ -40,7 +40,10 @@ st.markdown(
 col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
 with col1:
-    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
+    if st.button("CertCreate", key="home_nav_certcreate"):
+        from utils.shared_functions import reset_certcreate_session
+        reset_certcreate_session()
+        st.switch_page("pages/1_CertCreate.py")
 with col2:
     st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 with col3:
