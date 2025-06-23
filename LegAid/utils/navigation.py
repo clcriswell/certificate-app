@@ -71,7 +71,7 @@ def render_logo():
     """Render the application logo in the top-right corner."""
     st.markdown(
         f'''
-    <a href="app.py" target="">
+    <a href="/" target="app.py">
         <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
     </a>
     ''',
