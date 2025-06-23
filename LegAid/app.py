@@ -34,7 +34,7 @@ st.markdown("""
     margin-top: 1rem; /* spacing above buttons */
     display: flex;
     justify-content: center;
-    gap: 20px; /* spacing between buttons */
+    gap: 10px; /* spacing between buttons */
 }
 
 .centered-btn-container button {
