@@ -25,19 +25,47 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col2, col3, col4 = st.columns(3)
+import streamlit as st
 
-with col2:
-    if st.button("CertCreate"):
-        st.switch_page("pages/1_CertCreate.py")
+# Inject custom CSS for styling
+st.markdown("""
+<style>
+.centered-btn-container {
+    position: fixed;
+    top: 80px; /* adjust vertical positioning as needed */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    display: flex;
+    gap: 20px; /* spacing between buttons */
+}
 
-with col3:
-    if st.button("SpeechCreate"):
-        st.switch_page("pages/2_SpeechCreate.py")
+.centered-btn-container button {
+    background-color: #5b8dee;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
 
-with col4:
-    if st.button("ResponseCreate"):
-        st.switch_page("pages/3_ResponseCreate.py")
+.centered-btn-container button:hover {
+    background-color: #4a7bd1;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# Create container for centered buttons
+st.markdown("""
+<div class='centered-btn-container'>
+    <button onclick="window.location.href='/1_CertCreate'">CertCreate</button>
+    <button onclick="window.location.href='/2_SpeechCreate'">SpeechCreate</button>
+    <button onclick="window.location.href='/3_ResponseCreate'">ResponseCreate</button>
+</div>
+""", unsafe_allow_html=True)
+
 
 
 
