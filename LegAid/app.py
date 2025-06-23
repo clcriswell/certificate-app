@@ -28,10 +28,7 @@ st.markdown(
 col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
 with col1:
-    if st.button("CertCreate", key="home_nav_certcreate"):
-        from utils.shared_functions import reset_certcreate_session
-        reset_certcreate_session()
-        st.switch_page("pages/1_CertCreate.py")
+    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
 with col2:
     st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 with col3:
