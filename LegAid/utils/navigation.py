@@ -49,7 +49,7 @@ def render_sidebar():
     with st.sidebar:
         st.page_link("app.py", label="LegAid", icon=None)
 
-        st.page_link("pages/1_CreateCreate.py", label="CearteCreate", icon=None)
+        st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
             
         st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
 
