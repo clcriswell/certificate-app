@@ -25,7 +25,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4 = st.columns(4)
 
 with col2:
     st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
