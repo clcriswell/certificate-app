@@ -25,13 +25,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4, col5 = st.columns(5)
 
-with col1:
-    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
 with col2:
-    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+    st.page_link("pages/1_CertCreate.py", label="CertCreate", icon=None)
 with col3:
+    st.page_link("pages/2_SpeechCreate.py", label="SpeechCreate", icon=None)
+with col4:
     st.page_link("pages/3_ResponseCreate.py", label="ResponseCreate", icon=None)
 
 
