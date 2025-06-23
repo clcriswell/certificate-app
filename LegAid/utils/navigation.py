@@ -74,8 +74,8 @@ def render_logo():
         <style>
         .logo-container {{
             position: relative;
-            top: 20px;
-            right: 20px;
+            top: 0px;
+            right: 0px;
             z-index: 999;
         }}
 
