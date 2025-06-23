@@ -758,8 +758,8 @@ center_col.button("Start Over", on_click=reset_request, key="start_new_top", use
 st.markdown(
     """
     <style>
-    button[id^='apply_'] {background-color:#90ee90;color:black;}
-    button[id^='keep_'] {background-color:#f8d7da;color:black;}
+    button[id^='apply_'] {background-color:#90ee90 !important;color:black !important;}
+    button[id^='keep_'] {background-color:#f8d7da !important;color:black !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -907,11 +907,11 @@ if not st.session_state.started:
                     apply_btn = c1.button("Apply", key=f"apply_{i}")
                     keep_btn = c2.button("Keep Original", key=f"keep_{i}")
                     c1.markdown(
-                        f"<style>button#apply_{i} {{background-color:#90ee90;color:black;}}</style>",
+                        f"<style>button#apply_{i} {{background-color:#90ee90 !important;color:black !important;}}</style>",
                         unsafe_allow_html=True,
                     )
                     c2.markdown(
-                        f"<style>button#keep_{i} {{background-color:#f8d7da;color:black;}}</style>",
+                        f"<style>button#keep_{i} {{background-color:#f8d7da !important;color:black !important;}}</style>",
                         unsafe_allow_html=True,
                     )
                 improved = st.session_state[f"improved_{i}"]
