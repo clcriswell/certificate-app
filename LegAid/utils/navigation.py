@@ -11,7 +11,7 @@ with open(_logo_path, "rb") as _f:
 
 st.markdown(
     f'''
-    <a href="/" target="_self">
+    <a href="/" target="_app.py">
         <img src="data:image/png;base64,{_encoded_logo}" width="200px" />
     </a>
     ''',
