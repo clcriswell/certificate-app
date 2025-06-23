@@ -18,25 +18,6 @@ def render_sidebar():
         unsafe_allow_html=True,
     )
 
-    # Style the navigation links and CertCreate button consistently
-    st.markdown(
-        """
-        <style>
-        a[data-testid="stPageLink"], [data-testid='stSidebar'] button {
-            display:block;
-            padding:0.75rem 1.25rem;
-            margin:0 0 0.25rem;
-            background:#004cbd;
-            color:#fff !important;
-            border-radius:4px;
-            text-decoration:none;
-            font-weight:600;
-            border:none;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
     # JavaScript to toggle the sidebar based on screen width
     st.markdown(
