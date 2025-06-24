@@ -5,13 +5,13 @@ from pydantic import BaseModel, Field, validator
 
 @dataclass
 class LoopConfig:
-    max_loops: int = 3
+    max_loops: int = 9
     confidence_threshold: float = 0.85
     whitelist_domains: Sequence[str] | None = None  # e.g., (".gov", ".edu")
     blacklist_domains: Sequence[str] | None = None
     enable_hallucination_guard: bool = True
-    llm_model: str = "gpt-4o-mini"
-    llm_temperature: float = 0.2
+    llm_model: str = "gpt-4o"
+    llm_temperature: float = 0.5
     request_timeout: float = 30.0  # seconds
 
 class SourceDoc(BaseModel):
