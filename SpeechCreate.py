@@ -1,22 +1,15 @@
-"""Speech Creator page integrated with LegAid."""
-
-from __future__ import annotations
+"""Standalone Speech Creator Streamlit app."""
 
 import json
 import io
-import os
 import difflib
 from datetime import datetime
 from pathlib import Path
-import sys
+import os
 
 import streamlit as st
+import openai
 from docx import Document
-
-from utils.navigation import render_sidebar, render_logo
-
-# Ensure repository root is importable for speech_creator package
-sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from speech_creator.file_utils import extract_text
 from speech_creator.voice_profile import generate_profile_from_text, update_profile
@@ -26,15 +19,10 @@ from speech_creator.prompt_builder import make_speech_prompt
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
-import openai
-
 client = openai.OpenAI()
 MODEL = "gpt-4o"
 
-st.set_page_config(page_title="SpeechCreate", layout="wide")
-render_sidebar()
-render_logo()
-
+st.set_page_config(page_title="Speech Creator", layout="wide")
 st.title("🗣️ Speech Creator")
 
 if "profile" not in st.session_state:
@@ -51,7 +39,7 @@ def _slugify(name: str) -> str:
 
 with st.expander("Voice Integrated Profile", expanded=True):
     profiles = [Path(p).name for p in list_files("profiles")]
-    selected = st.selectbox("Load Existing Profile", ["" ] + profiles)
+    selected = st.selectbox("Load Existing Profile", [""] + profiles)
     if selected:
         data = load_file(f"profiles/{selected}")
         if data:
