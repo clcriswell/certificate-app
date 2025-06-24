@@ -173,7 +173,7 @@ if st.session_state.speech_draft:
             {"role": "user", "content": st.session_state.final_text},
         ]
         resp = client.chat.completions.create(
-            model=MODEL, messages=sum_messages, temperature=0.3, max_tokens=2000
+            model=MODEL, messages=sum_messages, temperature=0.7, max_tokens=2000
         )
         points = resp.choices[0].message.content.strip()
         slug = datetime.now().strftime("%Y-%m-%d_%H%M")
