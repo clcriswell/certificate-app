@@ -21,7 +21,7 @@ st.markdown(
     f"""
     <div style='text-align:center; padding:2rem 0;'>
         <img src='data:image/png;base64,{encoded}' width='400' alt='Application logo'>
-        <h4 style='margin-top:2; color: gray;'>Tools for Legislative Productivity</h4>
+        <h4 style='margin-top:10; color: gray;'>Tools for Legislative Productivity</h4>
     </div>
     """,
     unsafe_allow_html=True,
