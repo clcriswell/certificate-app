@@ -1,6 +1,7 @@
 """File utilities for extracting text from uploaded files."""
 from __future__ import annotations
 
+
 from typing import IO
 from pathlib import Path
 import io
