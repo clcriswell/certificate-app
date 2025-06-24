@@ -132,9 +132,6 @@ if submitted:
         )
         response = client.chat.completions.create(model=MODEL, messages=messages)
 
-        messages = make_speech_prompt(st.session_state.profile or {}, form_data, research_notes)
-        response = openai.ChatCompletion.create(model=MODEL, messages=messages)
-
         draft = response.choices[0].message.content.strip()
         st.session_state.speech_draft = draft
         st.session_state.orig_draft = draft
@@ -180,15 +177,6 @@ if st.session_state.speech_draft:
         st.download_button("Download Talking Points", points, file_name=f"{slug}_points.txt")
         save_file(f"speeches/{slug}_points.txt", points, f"Add points {slug}")
 
-        sum_messages = [
-            {"role": "system", "content": "Summarize the following speech into bullet points."},
-            {"role": "user", "content": final_text},
-        ]
-        resp = openai.ChatCompletion.create(model=MODEL, messages=sum_messages, temperature=0.3)
-        points = resp.choices[0].message.content.strip()
-        st.download_button(
-            "Download Talking Points", points, file_name=f"{slug}_points.txt"
-        )
         with st.expander("Changes from original draft"):
             st.text_area("Diff", diff, height=200)
         st.success("Speech saved and files generated")

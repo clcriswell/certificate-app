@@ -11,7 +11,8 @@ def decompose_task(description: str) -> List[str]:
         "Break down the following coding task into a sequence of shell commands"\
         " that can be executed to implement the task. One command per line.\n" + description
     )
-    res = openai.ChatCompletion.create(
+    client = openai.OpenAI()
+    res = client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
     )
