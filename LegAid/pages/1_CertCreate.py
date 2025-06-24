@@ -531,7 +531,8 @@ Return ONLY valid JSON.
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": event_text}
         ],
-        temperature=0
+        temperature=0,
+        max_tokens=2000,
     )
 
     content = response.choices[0].message.content
@@ -629,7 +630,8 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
-        temperature=0
+        temperature=0,
+        max_tokens=2000,
     )
 
     content = response.choices[0].message.content
@@ -707,7 +709,8 @@ def improve_certificate(cert):
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user_msg}],
-        temperature=0
+        temperature=0,
+        max_tokens=2000,
     )
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()

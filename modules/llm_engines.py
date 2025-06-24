@@ -15,6 +15,7 @@ class OpenAIEngine:
             model=self.model,
             messages=messages,
             temperature=self.temperature,
-            timeout=self.timeout
+            timeout=self.timeout,
+            max_tokens=2000,
         )
         return response.choices[0].message.content.strip()

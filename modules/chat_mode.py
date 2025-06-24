@@ -23,6 +23,7 @@ class ChatBot:
             model=self.model,
             messages=messages,
             temperature=self.temperature if temperature is None else temperature,
+            max_tokens=2000,
         )
         assistant_message = response.choices[0].message.content.strip()
         messages.append({"role": "assistant", "content": assistant_message})

@@ -69,6 +69,7 @@ def parse_certificate(text: str) -> list:
             {"role": "user", "content": text},
         ],
         temperature=0,
+        max_tokens=2000,
     )
     content = response.choices[0].message.content
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
