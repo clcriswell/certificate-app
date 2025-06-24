@@ -1,8 +1,15 @@
+"""Standalone Speech Creator Streamlit app."""
+
+
+
 import json
 import io
 import difflib
 from datetime import datetime
 from pathlib import Path
+import os
+
+
 
 import streamlit as st
 import openai
@@ -13,6 +20,11 @@ from speech_creator.voice_profile import generate_profile_from_text, update_prof
 from speech_creator.github_io import load_file, save_file, list_files
 from speech_creator.prompt_builder import make_speech_prompt
 
+
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
+client = openai.OpenAI()
 openai.api_key = st.secrets.get("OPENAI_API_KEY")
 MODEL = "gpt-4o"
 
@@ -25,6 +37,10 @@ if "speech_draft" not in st.session_state:
     st.session_state.speech_draft = ""
 if "orig_draft" not in st.session_state:
     st.session_state.orig_draft = ""
+
+if "final_text" not in st.session_state:
+    st.session_state.final_text = ""
+
 
 
 def _slugify(name: str) -> str:
@@ -110,8 +126,15 @@ if submitted:
         research_notes = None
 
     with st.spinner("Generating draft..."):
+
+        messages = make_speech_prompt(
+            st.session_state.profile or {}, form_data, research_notes
+        )
+        response = client.chat.completions.create(model=MODEL, messages=messages)
+
         messages = make_speech_prompt(st.session_state.profile or {}, form_data, research_notes)
         response = openai.ChatCompletion.create(model=MODEL, messages=messages)
+
         draft = response.choices[0].message.content.strip()
         st.session_state.speech_draft = draft
         st.session_state.orig_draft = draft
@@ -138,6 +161,25 @@ if st.session_state.speech_draft:
         doc.save(buf)
         st.download_button("Download DOCX", buf.getvalue(), file_name=f"{slug}.docx")
 
+
+        st.session_state.final_text = final_text
+        with st.expander("Changes from original draft"):
+            st.text_area("Diff", diff, height=200)
+        st.success("Speech saved and files generated")
+
+    if st.session_state.final_text and st.button("Create Talking Points"):
+        sum_messages = [
+            {"role": "system", "content": "Summarize the following speech into bullet points."},
+            {"role": "user", "content": st.session_state.final_text},
+        ]
+        resp = client.chat.completions.create(
+            model=MODEL, messages=sum_messages, temperature=0.3
+        )
+        points = resp.choices[0].message.content.strip()
+        slug = datetime.now().strftime("%Y-%m-%d_%H%M")
+        st.download_button("Download Talking Points", points, file_name=f"{slug}_points.txt")
+        save_file(f"speeches/{slug}_points.txt", points, f"Add points {slug}")
+
         sum_messages = [
             {"role": "system", "content": "Summarize the following speech into bullet points."},
             {"role": "user", "content": final_text},
@@ -150,3 +192,4 @@ if st.session_state.speech_draft:
         with st.expander("Changes from original draft"):
             st.text_area("Diff", diff, height=200)
         st.success("Speech saved and files generated")
+

@@ -1,8 +1,8 @@
 """Voice profile generation and updates using OpenAI."""
 from __future__ import annotations
-
 from datetime import datetime
 import json
+import os
 import openai
 
 
@@ -21,7 +21,14 @@ def generate_profile_from_text(text: str, name: str) -> dict:
         {"role": "system", "content": sys_prompt},
         {"role": "user", "content": f"NAME: {name}\nTEXT:\n{text}"},
     ]
+
+    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    resp = client.chat.completions.create(
+        model="gpt-4o", messages=messages, temperature=0.2
+    )
+
     resp = openai.ChatCompletion.create(model="gpt-4o", messages=messages, temperature=0.2)
+
     try:
         data = json.loads(resp.choices[0].message.content.strip())
     except Exception:
