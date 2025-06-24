@@ -205,7 +205,7 @@ class ResearchAssistant:
             "• Use plain, professional language.\n"
             "• When asserting a fact, cite like this: (see {citation}) using the citation map given.\n"
             "• Summarize social sentiment if available.\n"
-            "• Output 3‑5 concise paragraphs."
+            "• Output 16 paragraphs."
         )
         citation_map = "\n".join(f"{v}: {ctx[i].title} – {ctx[i].url}"
                                  for i, v in enumerate(citations.values()))
@@ -233,7 +233,7 @@ class ResearchAssistant:
         return answer
 
     @staticmethod
-    def _prepare_chunks(ctx: List[SourceDoc], max_chars: int = 8000) -> str:
+    def _prepare_chunks(ctx: List[SourceDoc], max_chars: int = 18000) -> str:
         """Join source contents until reaching a character limit (to avoid overflow)."""
         text_chunks = []
         total = 0
@@ -252,7 +252,7 @@ def build_your_assistant():
     loop_log = LoopMemory()
     # Build the research assistant with configured components
     assistant = ResearchAssistant(
-        llm=OpenAIEngine(model="gpt-4o-mini", temperature=0.2, timeout=30.0),
+        llm=OpenAIEngine(model="gpt-4o-mini", temperature=0.6, timeout=30.0),
         search_client=SerpAPISearch(os.environ["SERPAPI_API_KEY"]),
         extractor=TrafilaturaExtractor(),
         social_client=TwitterExtractor(os.getenv("TWITTER_BEARER_TOKEN", "")) if os.getenv("TWITTER_BEARER_TOKEN") else None,
