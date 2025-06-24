@@ -11,6 +11,8 @@ pdf2image
 reportlab
 PyMuPDF
 striprtf
+docx2txt
+PyGithub
 httpx
 pydantic
 trafilatura
