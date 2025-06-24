@@ -1,0 +1,9 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+
+# Other
+*.egg-info/
