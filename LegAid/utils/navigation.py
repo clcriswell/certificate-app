@@ -80,7 +80,7 @@ def render_logo():
         }}
 
         .logo-container img {{
-            width: 200px;
+            width: 40px;
         }}
 
         @media only screen and (max-width: 768px) {{
