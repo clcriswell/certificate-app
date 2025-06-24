@@ -59,3 +59,20 @@ python flyer_ocr_parser.py path/to/flyer.png
 ```
 
 The script performs OCR on the image, sends the text to GPT for analysis, and prints a JSON **list** of dictionaries with the extracted name, title, organization, date, commendation, and any partners found. Only real individuals or organizations will be returned.
+
+## 🗣️ Speech Creator
+
+Craft speeches with a personalized voice profile. The page reads sample text you upload, builds a profile, and generates a draft speech based on details you provide.
+
+### Required Secrets
+
+- **OPENAI_API_KEY** – used for generating drafts.
+- **GITHUB_TOKEN** – enables saving profiles and speeches back to the repo.
+
+Launch the page with:
+
+```bash
+streamlit run SpeechCreate.py
+```
+
+After generating a draft you can download the speech and bullet‑point notes or push the files to GitHub.
