@@ -27,8 +27,6 @@ def generate_profile_from_text(text: str, name: str) -> dict:
         model="gpt-4o", messages=messages, temperature=0.2
     )
 
-    resp = openai.ChatCompletion.create(model="gpt-4o", messages=messages, temperature=0.2)
-
     try:
         data = json.loads(resp.choices[0].message.content.strip())
     except Exception:
