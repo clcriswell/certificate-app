@@ -31,6 +31,8 @@ if "speech_draft" not in st.session_state:
     st.session_state.speech_draft = ""
 if "orig_draft" not in st.session_state:
     st.session_state.orig_draft = ""
+if "final_text" not in st.session_state:
+    st.session_state.final_text = ""
 
 
 def _slugify(name: str) -> str:
@@ -146,17 +148,20 @@ if st.session_state.speech_draft:
         doc.save(buf)
         st.download_button("Download DOCX", buf.getvalue(), file_name=f"{slug}.docx")
 
+        st.session_state.final_text = final_text
+        with st.expander("Changes from original draft"):
+            st.text_area("Diff", diff, height=200)
+        st.success("Speech saved and files generated")
+
+    if st.session_state.final_text and st.button("Create Talking Points"):
         sum_messages = [
             {"role": "system", "content": "Summarize the following speech into bullet points."},
-            {"role": "user", "content": final_text},
+            {"role": "user", "content": st.session_state.final_text},
         ]
         resp = client.chat.completions.create(
             model=MODEL, messages=sum_messages, temperature=0.3
         )
         points = resp.choices[0].message.content.strip()
-        st.download_button(
-            "Download Talking Points", points, file_name=f"{slug}_points.txt"
-        )
-        with st.expander("Changes from original draft"):
-            st.text_area("Diff", diff, height=200)
-        st.success("Speech saved and files generated")
+        slug = datetime.now().strftime("%Y-%m-%d_%H%M")
+        st.download_button("Download Talking Points", points, file_name=f"{slug}_points.txt")
+        save_file(f"speeches/{slug}_points.txt", points, f"Add points {slug}")
