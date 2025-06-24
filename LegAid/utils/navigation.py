@@ -73,7 +73,7 @@ def render_logo():
         f'''
         <style>
         .logo-container {{
-            position: relative;
+            position: sticky;
             top: 60px;
             right: 200px;
             z-index: 999;
