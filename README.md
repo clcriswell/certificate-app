@@ -76,3 +76,5 @@ streamlit run SpeechCreate.py
 ```
 
 After generating a draft you can download the speech and bullet‑point notes or push the files to GitHub.
+
+Any research performed by the speech generator is logged to `research.log` in the project root.
