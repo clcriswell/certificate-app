@@ -49,9 +49,15 @@ def _slugify(name: str) -> str:
     return Path(name.lower().replace(" ", "_")).stem
 
 
+def goto_step(new_step: int, desc: str = "") -> None:
+    """Set the session step and log the transition."""
+    logger.info("Transition to step %d %s", new_step, f"- {desc}" if desc else "")
+    st.session_state.step = new_step
+
+
 def back_button():
     if st.button("Back"):
-        st.session_state.step = max(st.session_state.step - 1, 0)
+        goto_step(max(st.session_state.step - 1, 0), "Back pressed")
 
 
 step = st.session_state.step
@@ -66,10 +72,10 @@ if step == 0:
             data = load_file(f"profiles/{selected}")
             if data:
                 st.session_state.profile = json.loads(data)
-                st.session_state.step = 2
+                goto_step(2, f"Loaded profile {selected}")
     with col2:
         if st.button("Add New"):
-            st.session_state.step = 1
+            goto_step(1, "Add new profile")
 
 elif step == 1:
     st.header("Create Voice Profile")
@@ -86,11 +92,13 @@ elif step == 1:
         if not all_text:
             st.error("Please upload at least one file")
         else:
+            logger.info("Generating profile '%s' from %d files", profile_name, len(uploaded or []))
             with st.spinner("Analyzing writing style..."):
                 st.session_state.profile = generate_profile_from_text(
                     all_text, profile_name
                 )
             st.success("Profile generated")
+            logger.info("Profile generation completed")
     if st.session_state.profile:
         profile_json = json.dumps(st.session_state.profile, indent=2)
         st.text_area(
@@ -104,7 +112,7 @@ elif step == 1:
                 f"Save profile {slug}",
             )
             st.success("Profile saved")
-            st.session_state.step = 2
+            goto_step(2, f"Profile saved {slug}")
     back_button()
 
 elif step == 2:
@@ -119,7 +127,7 @@ elif step == 2:
         back_button()
     with col2:
         if st.button("Next"):
-            st.session_state.step = 3
+            goto_step(3, "Event details provided")
 
 elif step == 3:
     st.header("Speech Length")
@@ -133,7 +141,7 @@ elif step == 3:
         back_button()
     with col2:
         if st.button("Next"):
-            st.session_state.step = 4
+            goto_step(4, "Selected speech length")
 
 elif step == 4:
     st.header("Tone")
@@ -155,7 +163,7 @@ elif step == 4:
         back_button()
     with col2:
         if st.button("Next"):
-            st.session_state.step = 5
+            goto_step(5, "Selected tone")
 
 elif step == 5:
     st.header("Audience")
@@ -178,7 +186,7 @@ elif step == 5:
         back_button()
     with col2:
         if st.button("Next"):
-            st.session_state.step = 6
+            goto_step(6, "Selected audience")
 
 elif step == 6:
     st.header("Special Recognitions")
@@ -192,7 +200,7 @@ elif step == 6:
         back_button()
     with col2:
         if st.button("Next"):
-            st.session_state.step = 7
+            goto_step(7, "Added recognitions")
 
 elif step == 7:
     st.header("Specific Instructions")
@@ -206,6 +214,7 @@ elif step == 7:
         back_button()
     with col2:
         if st.button("Create Speech"):
+            logger.info("Starting speech generation")
             form_data = {
                 "event_type": st.session_state.get("event_desc", ""),
                 "purpose": "",
@@ -222,6 +231,7 @@ elif step == 7:
                 from modules import research_assistant
 
                 if hasattr(research_assistant, "gather_info"):
+                    logger.info("Gathering research notes")
                     research_notes = research_assistant.gather_info(
                         form_data["event_type"]
                     )
@@ -239,13 +249,15 @@ elif step == 7:
                 messages = make_speech_prompt(
                     st.session_state.profile or {}, form_data, research_notes
                 )
+                logger.info("Calling OpenAI for draft")
                 response = client.chat.completions.create(
                     model=MODEL, messages=messages, max_tokens=2000
                 )
                 draft = response.choices[0].message.content.strip()
                 st.session_state.speech_draft = draft
                 st.session_state.orig_draft = draft
-            st.session_state.step = 8
+                logger.info("Draft generated")
+            goto_step(8, "Speech draft ready")
 
 elif step == 8:
     st.header("Speech Preview")
@@ -273,6 +285,7 @@ elif step == 8:
                     st.session_state.profile, final_text
                 )
             slug = datetime.now().strftime("%Y-%m-%d_%H%M")
+            logger.info("Saving speech %s", slug)
             save_file(f"speeches/{slug}.txt", final_text, f"Add speech {slug}")
             doc = Document()
             doc.add_paragraph(final_text)
@@ -282,7 +295,7 @@ elif step == 8:
             st.session_state.docx_data = buf.getvalue()
             st.session_state.slug = slug
             st.session_state.diff = diff
-            st.session_state.step = 9
+            goto_step(9, f"Saved speech {slug}")
 
 elif step == 9:
     st.success("Speech saved")
@@ -292,6 +305,7 @@ elif step == 9:
         file_name=f"{st.session_state.slug}.docx",
     )
     if st.button("Create Talking Points"):
+        logger.info("Generating talking points for %s", st.session_state.slug)
         sum_messages = [
             {
                 "role": "system",
@@ -313,3 +327,4 @@ elif step == 9:
             points,
             f"Add points {st.session_state.slug}",
         )
+        logger.info("Talking points saved for %s", st.session_state.slug)
