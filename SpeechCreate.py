@@ -10,6 +10,27 @@ import openai
 import logging
 from docx import Document
 
+
+def setup_logging(log_file: str = "speech.log") -> logging.Logger:
+    """Ensure a file handler is attached so logs persist across Streamlit reloads."""
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    log_path = os.path.abspath(log_file)
+    has_file = any(
+        isinstance(h, logging.FileHandler)
+        and os.path.abspath(getattr(h, "baseFilename", "")) == log_path
+        for h in logger.handlers
+    )
+    if not has_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s")
+        )
+        logger.addHandler(file_handler)
+    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        logger.addHandler(logging.StreamHandler())
+    return logger
+
 from speech_creator.file_utils import extract_text
 from speech_creator.voice_profile import generate_profile_from_text, update_profile
 from speech_creator.github_io import load_file, save_file, list_files
@@ -18,15 +39,7 @@ from speech_creator.prompt_builder import make_speech_prompt
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
-if not logging.getLogger().handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s",
-        handlers=[
-            logging.FileHandler("speech.log"),
-            logging.StreamHandler(),
-        ],
-    )
+setup_logging()
 logger = logging.getLogger(__name__)
 
 client = openai.OpenAI()
