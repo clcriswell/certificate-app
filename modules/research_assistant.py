@@ -245,18 +245,25 @@ class ResearchAssistant:
             text_chunks.append(chunk)
         return "\n".join(text_chunks)
 
-def setup_logging(log_file: str = "research.log") -> None:
-    """Configure root logging if no handlers are present."""
-    root = logging.getLogger()
-    if not root.handlers:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s",
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler(),
-            ],
+def setup_logging(log_file: str = "research.log") -> logging.Logger:
+    """Return a logger that always writes to ``log_file``."""
+    logger = logging.getLogger("ResearchAssistant")
+    logger.setLevel(logging.INFO)
+
+    # Ensure a file handler for the research log is attached
+    log_path = os.path.abspath(log_file)
+    has_file = any(
+        isinstance(h, logging.FileHandler) and os.path.abspath(getattr(h, "baseFilename", "")) == log_path
+        for h in logger.handlers
+    )
+    if not has_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s")
         )
+        logger.addHandler(file_handler)
+
+    return logger
 
 
 def build_your_assistant():
@@ -284,8 +291,7 @@ def build_your_assistant():
 
 def gather_info(topic: str, log_file: str = "research.log") -> str:
     """Run the research assistant on ``topic`` and return the answer text."""
-    setup_logging(log_file)
-    logger = logging.getLogger(__name__)
+    logger = setup_logging(log_file)
     logger.info("Gathering research notes for '%s'", topic)
     assistant = build_your_assistant()
     loop = asyncio.new_event_loop()
