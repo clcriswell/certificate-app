@@ -5,7 +5,12 @@ import base64
 from .shared_functions import reset_certcreate_session
 
 # Preload the application logo for reuse
-_logo_path = Path(__file__).resolve().parent.parent / "Assets" / "MainLogo.png"
+_module_path = Path(__file__).resolve()
+if _module_path.parent.name == "__pycache__":
+    _module_path = _module_path.parent.parent
+else:
+    _module_path = _module_path.parent
+_logo_path = _module_path.parent / "Assets" / "MainLogo.png"
 with open(_logo_path, "rb") as _f:
     _encoded_logo = base64.b64encode(_f.read()).decode()
 
