@@ -245,6 +245,20 @@ class ResearchAssistant:
             text_chunks.append(chunk)
         return "\n".join(text_chunks)
 
+def setup_logging(log_file: str = "research.log") -> None:
+    """Configure root logging if no handlers are present."""
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s",
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler(),
+            ],
+        )
+
+
 def build_your_assistant():
     """Factory to build a ResearchAssistant with all components."""
     # Initialize persistent memory and loop logger
@@ -268,14 +282,18 @@ def build_your_assistant():
     return assistant
 
 
-def gather_info(topic: str) -> str:
+def gather_info(topic: str, log_file: str = "research.log") -> str:
     """Run the research assistant on ``topic`` and return the answer text."""
+    setup_logging(log_file)
+    logger = logging.getLogger(__name__)
+    logger.info("Gathering research notes for '%s'", topic)
     assistant = build_your_assistant()
     loop = asyncio.new_event_loop()
     try:
         result = loop.run_until_complete(assistant.run(topic))
     finally:
         loop.close()
+    logger.info("Finished gathering notes")
     return result.get("answer", "")
 
 # CLI Entrypoint for direct execution
