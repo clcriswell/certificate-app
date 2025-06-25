@@ -7,6 +7,7 @@ import os
 
 import streamlit as st
 import openai
+import logging
 from docx import Document
 
 from speech_creator.file_utils import extract_text
@@ -16,6 +17,17 @@ from speech_creator.prompt_builder import make_speech_prompt
 
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s",
+        handlers=[
+            logging.FileHandler("speech.log"),
+            logging.StreamHandler(),
+        ],
+    )
+logger = logging.getLogger(__name__)
 
 client = openai.OpenAI()
 MODEL = "gpt-4o"
@@ -217,6 +229,7 @@ elif step == 7:
                 st.warning(f"Research assistant unavailable: {e}")
                 research_notes = None
             except Exception:
+                logging.exception("Research assistant failed")
                 st.warning("Failed to gather research notes.")
                 research_notes = None
 
