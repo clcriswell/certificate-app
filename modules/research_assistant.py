@@ -251,9 +251,12 @@ def build_your_assistant():
     memory = SemanticMemory()
     loop_log = LoopMemory()
     # Build the research assistant with configured components
+    serp_key = os.getenv("SERPAPI_API_KEY")
+    if not serp_key:
+        raise RuntimeError("SERPAPI_API_KEY environment variable is not set")
     assistant = ResearchAssistant(
         llm=OpenAIEngine(model="gpt-4o-mini", temperature=0.6, timeout=30.0),
-        search_client=SerpAPISearch(os.environ["SERPAPI_API_KEY"]),
+        search_client=SerpAPISearch(serp_key),
         extractor=TrafilaturaExtractor(),
         social_client=TwitterExtractor(os.getenv("TWITTER_BEARER_TOKEN", "")) if os.getenv("TWITTER_BEARER_TOKEN") else None,
         config=LoopConfig(),

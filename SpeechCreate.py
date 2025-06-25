@@ -213,7 +213,11 @@ elif step == 7:
                     research_notes = research_assistant.gather_info(
                         form_data["event_type"]
                     )
+            except RuntimeError as e:
+                st.warning(f"Research assistant unavailable: {e}")
+                research_notes = None
             except Exception:
+                st.warning("Failed to gather research notes.")
                 research_notes = None
 
             with st.spinner(

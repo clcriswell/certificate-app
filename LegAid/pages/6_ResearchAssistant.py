@@ -32,14 +32,18 @@ query = st.text_input("Enter your research question")
 
 if st.button("Run Research") and query:
     with st.spinner("Researching, analyzing, and synthesizing..."):
-        assistant = build_your_assistant()
-        loop = asyncio.new_event_loop()
         try:
-            result = loop.run_until_complete(assistant.run(query))
-        finally:
-            loop.close()
-        st.success("Research complete.")
-        st.components.v1.html(generate_html_report(result), height=700, scrolling=True)
-        # Display a collapsible section with a magnifying glass emoji.
-        with st.expander("🔎 View Answer Text"):
-            st.write(result["answer"])
+            assistant = build_your_assistant()
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(assistant.run(query))
+            finally:
+                loop.close()
+        except RuntimeError as e:
+            st.warning(f"Research assistant unavailable: {e}")
+            result = None
+        if result:
+            st.success("Research complete.")
+            st.components.v1.html(generate_html_report(result), height=700, scrolling=True)
+            with st.expander("🔎 View Answer Text"):
+                st.write(result["answer"])
