@@ -264,6 +264,17 @@ def build_your_assistant():
     )
     return assistant
 
+
+def gather_info(topic: str) -> str:
+    """Run the research assistant on ``topic`` and return the answer text."""
+    assistant = build_your_assistant()
+    loop = asyncio.new_event_loop()
+    try:
+        result = loop.run_until_complete(assistant.run(topic))
+    finally:
+        loop.close()
+    return result.get("answer", "")
+
 # CLI Entrypoint for direct execution
 async def _amain(question: str):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s │ %(levelname)-8s │ %(message)s")
