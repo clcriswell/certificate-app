@@ -7,7 +7,7 @@ This directory contains an autonomous coding agent designed to execute coding ta
 - **Ephemeral Kubernetes Sandboxes** – each task runs in its own container launched via `k8s_launcher.py`.
 - **Task Queue** – RabbitMQ limits each user to 3–5 concurrent tasks.
 - **Secure Execution** – sandboxes use `nsjail` and Kubernetes NetworkPolicies to restrict outbound traffic to GitHub, PyPI and NPM.
-- **GPT‑4 Turbo Integration** – `llm_integration.py` decomposes tasks and generates code.
+- **GPT‑5 Mini Integration** – `llm_integration.py` decomposes tasks and generates code.
 - **Diff Validation** – `validate_diff.py` enforces code style with ESLint, Black and Pylint before tests run.
 - **Secrets Handling** – HashiCorp Vault provides short‑lived credentials.
 - **Audit Logging** – all actions are recorded to immutable CloudWatch Trails.

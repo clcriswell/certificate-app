@@ -31,7 +31,7 @@ def generate_profile_from_text(text: str, name: str) -> dict:
 
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     resp = client.chat.completions.create(
-        model="gpt-4o", messages=messages, temperature=0.7, max_tokens=2000
+        model="gpt-5-mini", messages=messages, temperature=0.7, max_tokens=2000
     )
 
     content = resp.choices[0].message.content.strip()
