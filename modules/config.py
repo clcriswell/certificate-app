@@ -10,7 +10,7 @@ class LoopConfig:
     whitelist_domains: Sequence[str] | None = None  # e.g., (".gov", ".edu")
     blacklist_domains: Sequence[str] | None = None
     enable_hallucination_guard: bool = True
-    llm_model: str = "gpt-4o"
+    llm_model: str = "gpt-5-mini"
     llm_temperature: float = 0.5
     request_timeout: float = 30.0  # seconds
 

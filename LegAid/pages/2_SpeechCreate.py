@@ -29,7 +29,7 @@ if "OPENAI_API_KEY" in st.secrets:
 import openai
 
 client = openai.OpenAI()
-MODEL = "gpt-4o"
+MODEL = "gpt-5-mini"
 
 st.set_page_config(page_title="SpeechCreate", layout="wide")
 render_sidebar()
