@@ -2,7 +2,7 @@ import os
 from typing import List
 import openai
 
-MODEL = "gpt-5-mini"
+MODEL = "gpt-4o-mini"
 
 
 def decompose_task(description: str) -> List[str]:

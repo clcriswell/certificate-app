@@ -28,7 +28,7 @@ from striprtf.striprtf import rtf_to_text
 import random
 
 client = openai.OpenAI()
-OPENAI_MODEL = "gpt-5-mini"
+OPENAI_MODEL = "gpt-4o-mini"
 
 if "google_vision_key" not in st.secrets:
     st.error("Add `google_vision_key` to your Streamlit secrets to enable OCR.")

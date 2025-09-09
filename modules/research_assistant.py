@@ -276,7 +276,7 @@ def build_your_assistant():
     if not serp_key:
         raise RuntimeError("SERPAPI_API_KEY environment variable is not set")
     assistant = ResearchAssistant(
-        llm=OpenAIEngine(model="gpt-5-mini", temperature=0.6, timeout=30.0),
+        llm=OpenAIEngine(model="gpt-4o-mini", temperature=0.6, timeout=30.0),
         search_client=SerpAPISearch(serp_key),
         extractor=TrafilaturaExtractor(),
         social_client=TwitterExtractor(os.getenv("TWITTER_BEARER_TOKEN", "")) if os.getenv("TWITTER_BEARER_TOKEN") else None,
