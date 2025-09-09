@@ -63,7 +63,7 @@ def parse_certificate(text: str) -> list:
     text = normalize_date_strings(text)
     client = openai.OpenAI()
     response = client.chat.completions.create(
-        model="gpt-5-mini",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": text},

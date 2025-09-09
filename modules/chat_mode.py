@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple
 class ChatBot:
     """Lightweight wrapper around the OpenAI chat API for quick conversations."""
 
-    def __init__(self, model: str = "gpt-5-mini", temperature: float = 0.5):
+    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.5):
         self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.model = model
         self.temperature = temperature

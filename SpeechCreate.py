@@ -43,7 +43,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 client = openai.OpenAI()
-MODEL = "gpt-5-mini"
+MODEL = "gpt-4o-mini"
 
 st.set_page_config(page_title="Speech Creator", layout="wide")
 st.title("🗣️ Speech Creator")
