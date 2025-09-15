@@ -7,7 +7,11 @@ import re
 from dateutil import parser as date_parser
 from pathlib import Path
 from utils.navigation import render_sidebar, render_logo
-from utils.shared_functions import normalize_date_strings, enforce_first_person
+from utils.shared_functions import (
+    normalize_date_strings,
+    enforce_first_person,
+    extract_json_block,
+)
 from pdfminer.high_level import extract_text
 import openai
 from docx import Document
@@ -536,7 +540,10 @@ Return ONLY valid JSON.
     )
 
     content = response.choices[0].message.content
-    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    try:
+        cleaned = extract_json_block(content)
+    except ValueError as exc:
+        raise json.JSONDecodeError(str(exc), content, 0) from exc
     data = json.loads(cleaned)
 
     if uniform:
@@ -635,7 +642,10 @@ def regenerate_certificate(cert, global_comment="", reviewer_comment=""):
     )
 
     content = response.choices[0].message.content
-    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    try:
+        cleaned = extract_json_block(content)
+    except ValueError as exc:
+        raise json.JSONDecodeError(str(exc), content, 0) from exc
     updated = json.loads(cleaned)
 
     cert["Name"] = updated.get("name", cert["Name"])
@@ -713,7 +723,10 @@ def improve_certificate(cert):
         max_tokens=2000,
     )
     content = response.choices[0].message.content
-    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    try:
+        cleaned = extract_json_block(content)
+    except ValueError as exc:
+        raise json.JSONDecodeError(str(exc), content, 0) from exc
     data = json.loads(cleaned)
     if "certificate_text" in data:
         data["certificate_text"] = enforce_first_person(data["certificate_text"])
