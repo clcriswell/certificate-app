@@ -1,0 +1,1 @@
+"""LegAid application package."""

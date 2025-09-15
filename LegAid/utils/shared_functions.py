@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from dateutil import parser as date_parser
@@ -16,8 +17,8 @@ def extract_json_block(content: str) -> str:
     """Return the JSON payload embedded in an LLM response.
 
     Many model responses include code fences or short explanations
-    before the actual JSON. This helper strips common wrappers and
-    returns the first balanced JSON object or array it can find.
+    before the actual JSON. This helper strips common wrappers and then
+    scans the remaining text for the first *valid* JSON object or array.
 
     Raises:
         ValueError: If no JSON content can be located or the JSON block
@@ -43,52 +44,25 @@ def extract_json_block(content: str) -> str:
                 lower = text.lower()
                 break
 
-    def _first_json_start(value: str) -> int | None:
-        positions = [pos for pos in (value.find("{"), value.find("[")) if pos != -1]
-        if not positions:
-            return None
-        return min(positions)
+    decoder = json.JSONDecoder()
+    saw_candidate = False
 
-    start_index = _first_json_start(text)
-    if start_index is None:
-        raise ValueError("No JSON object or array found in response.")
+    for match in re.finditer(r"[\[{]", text):
+        candidate_start = match.start()
+        try:
+            _, end = decoder.raw_decode(text[candidate_start:])
+        except json.JSONDecodeError:
+            saw_candidate = True
+            continue
 
-    def _slice_balanced(value: str, idx: int) -> str:
-        stack: list[str] = []
-        in_string = False
-        escape = False
-        result: list[str] = []
+        snippet = text[candidate_start : candidate_start + end].strip()
+        if snippet:
+            return snippet
 
-        for ch in value[idx:]:
-            result.append(ch)
-
-            if in_string:
-                if escape:
-                    escape = False
-                elif ch == "\\":
-                    escape = True
-                elif ch == '"':
-                    in_string = False
-                continue
-
-            if ch == '"':
-                in_string = True
-            elif ch in "{[":
-                stack.append(ch)
-            elif ch in "}]":
-                if not stack:
-                    raise ValueError("Unexpected closing bracket while parsing JSON.")
-                opener = stack.pop()
-                if opener == "{" and ch != "}":
-                    raise ValueError("Mismatched JSON braces in response.")
-                if opener == "[" and ch != "]":
-                    raise ValueError("Mismatched JSON brackets in response.")
-                if not stack:
-                    return "".join(result)
-
+    if saw_candidate:
         raise ValueError("JSON content appears to be truncated in the response.")
 
-    return _slice_balanced(text, start_index).strip()
+    raise ValueError("No JSON object or array found in response.")
 
 
 def normalize_date_strings(text: str) -> str:
