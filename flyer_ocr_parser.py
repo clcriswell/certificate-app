@@ -8,7 +8,7 @@ import base64
 import requests
 import openai
 
-from LegAid.utils.shared_functions import normalize_date_strings
+from LegAid.utils.shared_functions import normalize_date_strings, extract_json_block
 
 
 if not os.getenv("OPENAI_API_KEY"):
@@ -72,7 +72,10 @@ def parse_certificate(text: str) -> list:
         max_tokens=2000,
     )
     content = response.choices[0].message.content
-    cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
+    try:
+        cleaned = extract_json_block(content)
+    except ValueError as exc:
+        raise json.JSONDecodeError(str(exc), content, 0) from exc
     return json.loads(cleaned)
 
 

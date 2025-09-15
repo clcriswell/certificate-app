@@ -12,6 +12,85 @@ def example_helper():
     pass
 
 
+def extract_json_block(content: str) -> str:
+    """Return the JSON payload embedded in an LLM response.
+
+    Many model responses include code fences or short explanations
+    before the actual JSON. This helper strips common wrappers and
+    returns the first balanced JSON object or array it can find.
+
+    Raises:
+        ValueError: If no JSON content can be located or the JSON block
+            appears to be truncated.
+    """
+
+    if not content:
+        raise ValueError("No content provided to extract JSON from.")
+
+    text = content.strip()
+    if not text:
+        raise ValueError("No content provided to extract JSON from.")
+
+    lower = text.lower()
+    for marker in ("```json", "```"):
+        idx = lower.find(marker)
+        if idx != -1:
+            start = idx + len(marker)
+            end = lower.find("```", start)
+            segment = text[start:end if end != -1 else None].strip()
+            if segment:
+                text = segment
+                lower = text.lower()
+                break
+
+    def _first_json_start(value: str) -> int | None:
+        positions = [pos for pos in (value.find("{"), value.find("[")) if pos != -1]
+        if not positions:
+            return None
+        return min(positions)
+
+    start_index = _first_json_start(text)
+    if start_index is None:
+        raise ValueError("No JSON object or array found in response.")
+
+    def _slice_balanced(value: str, idx: int) -> str:
+        stack: list[str] = []
+        in_string = False
+        escape = False
+        result: list[str] = []
+
+        for ch in value[idx:]:
+            result.append(ch)
+
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+            elif ch in "{[":
+                stack.append(ch)
+            elif ch in "}]":
+                if not stack:
+                    raise ValueError("Unexpected closing bracket while parsing JSON.")
+                opener = stack.pop()
+                if opener == "{" and ch != "}":
+                    raise ValueError("Mismatched JSON braces in response.")
+                if opener == "[" and ch != "]":
+                    raise ValueError("Mismatched JSON brackets in response.")
+                if not stack:
+                    return "".join(result)
+
+        raise ValueError("JSON content appears to be truncated in the response.")
+
+    return _slice_balanced(text, start_index).strip()
+
+
 def normalize_date_strings(text: str) -> str:
     """Return text with common date formats normalized.
 
